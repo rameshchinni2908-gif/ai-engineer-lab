@@ -10,7 +10,7 @@ export interface ModuleNavEntry {
 /**
  * Canonical list + ordering of the 11 learning modules, driven by the shared
  * ModuleId enum. frontend-shell (Wave 1) replaces the placeholder HomePage
- * that reads this list with the real <ModuleShell>-based nav; module-owning
+ * that reads this list with the real <ModuleShell>-based nav; Module-owning
  * agents (Wave 2) should not need to edit this file - ping the architect if
  * a module's title/description needs to change.
  */

@@ -6,6 +6,32 @@
     <title>AI Engineer Lab</title>
   </head>
   <body>
+    <!--
+      No-flash theme bootstrap: applies the persisted/system theme to <html>
+      BEFORE React mounts. Mirrors the zustand persist storage format used
+      by src/stores/theme.ts ("ail-theme" -> { state: { preference } }).
+      hooks/useTheme.tsx's <ThemeProvider> takes over for the React lifetime.
+    -->
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem("ail-theme");
+          var preference = raw ? JSON.parse(raw).state.preference : "system";
+          var resolved =
+            preference === "system"
+              ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+              : preference;
+          if (resolved === "dark") {
+            document.documentElement.classList.add("dark");
+            document.documentElement.style.colorScheme = "dark";
+          } else {
+            document.documentElement.style.colorScheme = "light";
+          }
+        } catch (e) {
+          // localStorage unavailable or malformed - default to light, ThemeProvider will correct it.
+        }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

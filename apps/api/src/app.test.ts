@@ -9,7 +9,7 @@ describe("GET /health", () => {
 
   it("returns ok status, mode, and provider availability", async () => {
     const app = await buildApp({ logger: false });
-    const res = await app.inject({ method: "GET", url: "/health" });
+    const res = await app.inject({ method: "GET", url: "/api/health" });
 
     expect(res.statusCode).toBe(200);
     const body = res.json();

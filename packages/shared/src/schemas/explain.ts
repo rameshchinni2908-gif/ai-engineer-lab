@@ -4,6 +4,8 @@ import { DifficultySchema } from "./common.js";
 export const ExplainRunRequestSchema = z.object({
   runId: z.string(),
   difficulty: DifficultySchema.optional(),
+  /** When set, explainRun() produces an A/B comparison explanation of runId vs. this run (powers <CompareView>'s "Explain This Run"). */
+  comparisonRunId: z.string().optional(),
 });
 export type ExplainRunRequest = z.infer<typeof ExplainRunRequestSchema>;
 

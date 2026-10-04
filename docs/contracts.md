@@ -190,7 +190,7 @@ All paths relative to `/api`.
 | DELETE | `/runs/:id` | — | `{ ok: true }` | No | Hard delete; also cascades eval_results rows referencing it? No — eval_results keep `runId` as a dangling reference and the eval UI shows "run deleted". |
 | POST | `/runs/:id/replay` | `{ overrideParams?: GenerationParams }` | SSE (§2) | **Yes** | See §2.4. |
 | GET | `/runs/compare` | query `?a=<runId>&b=<runId>` | `{ a: Run, b: Run, diff: { field: string; aValue: unknown; bValue: unknown }[] }` | No | `diff` is computed over `params`, `usage`, `cost`, `latencyMs`, `output.text` (by field path); used by `<CompareView>`. |
-| POST | `/explain-run` | `ExplainRunRequest` | `ExplainRunResponse` | No | Synchronous; run must already be `status: "complete"` or `"error"`, else 409 `CONFLICT`. See §7. |
+| POST | `/explain-run` | `ExplainRunRequest` (now includes optional `comparisonRunId: string`) | `ExplainRunResponse` | No | Synchronous; run(s) must already be `status: "complete"` or `"error"`, else 409 `CONFLICT`. When `comparisonRunId` is set, `explainRun()` produces an A/B comparison explanation of `runId` vs. `comparisonRunId` instead of a single-run explanation — this is what `<CompareView>`'s "Explain This Run" calls. See §7. |
 | GET | `/traces` | query `?moduleId=&from=&to=&page=&pageSize=` | `Paginated<Trace>` | No | `moduleId` filters via the root span's `attributes.moduleId`. |
 | GET | `/traces/:id` | — | `Trace` | No | 404 if missing. |
 
@@ -443,6 +443,8 @@ own the *content* passed into these tabs, not the shell markup itself.
 | 2026-10-04 | Extended `/production/reliability-sim`'s `scenario`/`policy`/response shape to cover idempotency (`"duplicate-request"`, `idempotencyKey`) and queues (`"queue-backpressure"`, `queueConcurrency`, `queueDepthOverTime`) per CLAUDE.md's full reliability list. | reviewer (Wave 0 audit) |
 | 2026-10-04 | Added `LoopDetectionConfigSchema` and `requireApprovalForDangerousTools`/`approvalRequiredTools` fields to `AgentLimitsSchema` in `@ail/shared` so all 5 agent controls (max steps, budget, timeout, loop detection, human-in-the-loop approval) are expressible without `agent-engineer` needing to edit a schema it doesn't own. Updated the `/agents/run` row and added `agent.test.ts` coverage. | reviewer (Wave 0 audit) |
 | 2026-10-04 | `/advanced/reasoning-presets`: resolved the deferred "pick one reuse path" note into a firm decision (reuse M1's `/fundamentals/sample`, no new generation route). | reviewer (Wave 0 audit) |
+| 2026-10-05 | Added optional `comparisonRunId` to `ExplainRunRequestSchema` and the §3 `/explain-run` row. The comparison-factor path in `services/explain/factors.ts` was implemented and documented in `docs/backend-api.md` but unreachable through the API, making `<CompareView>`'s "Explain This Run" a dead feature. | reviewer (Wave 1 audit) |
+| 2026-10-05 | §9.2 reworded to specify `import.meta.glob` as the web router mechanism instead of 11 literal `React.lazy(() => import(...))` calls. A literal dynamic import of a not-yet-existing path breaks the Vite build, defeating the graceful-degradation guarantee §9 exists to provide. Wave 2's obligation is unchanged (create `modules/<moduleId>/index.tsx` with a default export; never edit the router). | orchestrator (accepted frontend-shell's Wave 1 deviation) |
 | 2026-10-04 | Added §9 "Module registration conventions" (new seam files `apps/api/src/routes/index.ts` and `apps/web/src/app/router.tsx`, both added to §5 with owners `backend-core`/`frontend-shell`); fixed §5 API ownership gaps (`agent-engineer` now also owns `routes/services/mcp/**`, `platform-engineer` now also owns `routes/services/checklist/**`, matching routes that already existed in §4 but had no owning glob). | orchestrator (gap found during Wave 0 integration, not from the reviewer's list) |
 
 ---
@@ -525,14 +527,20 @@ advanced, checklist`. (Note the one intentional naming divergence: M8's web modu
 and `guardrails`, matching §4's path prefixes. Same agent, different names, by design; do not
 "fix" either side to match the other.)
 
-`frontend-shell` writes `apps/web/src/app/router.tsx` once, with one `React.lazy` import per
-`ModuleId`, mounted at `/m/:moduleId`-style fixed routes (one concrete route per id, e.g.
-`/m/rag` → `lazy(() => import("@/modules/rag"))`), wrapped in a `<Suspense>` whose fallback is a
-loading skeleton, and an error boundary per route that renders a "this module is coming in a
-later wave" placeholder instead of crashing the app if the dynamic import 404s (module folder
-not yet created) or throws (module folder exists but is mid-development and currently broken).
-This is what lets Wave 1 ship a fully navigable 11-module shell before any Wave-2 code exists,
-and lets each Wave-2 agent land independently without the router needing a code change.
+`frontend-shell` writes `apps/web/src/app/router.tsx` once, mounting one route per `ModuleId` at
+`/m/:moduleId`-style fixed paths (e.g. `/m/rag`). **As implemented**, module resolution uses
+Vite's `import.meta.glob("/src/modules/*/index.tsx")` (eager: false) rather than 11 literal
+`React.lazy(() => import("@/modules/<id>"))` calls — a literal dynamic import of a path that
+doesn't exist yet fails the Vite build, which would defeat the graceful-degradation requirement
+this section exists to guarantee, whereas `import.meta.glob` only picks up module folders that
+actually exist on disk at build time. The router looks up the current `:moduleId` in the glob's
+result map; a hit is wrapped in `React.lazy(...)` + `<Suspense>` with a loading-skeleton
+fallback plus an error boundary (catches a throw from a module that exists but is currently
+broken); a miss (folder not created yet) renders a "this module is coming in a later wave"
+placeholder directly, with no import attempted. Verified both directions: zero module folders →
+placeholder for all 11 ids; a folder added → it is picked up and lazy-loads with no router
+change. This is what lets Wave 1 ship a fully navigable 11-module shell before any Wave-2 code
+exists, and lets each Wave-2 agent land independently without the router needing a code change.
 
 ### 9.3 The rule
 

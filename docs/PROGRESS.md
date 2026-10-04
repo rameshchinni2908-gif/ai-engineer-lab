@@ -45,10 +45,19 @@ was too large for a single agent pass.
 - [x] `AuditLogEntry` schema added to `@ail/shared` (audit_log table had no shared type)
 - [x] **GATE 0 green** (typecheck / lint / test 12 / build — verified twice: by architect and by reviewer)
 - [x] `reviewer` pass on Wave 0: **0 BLOCKER**, 4 MAJOR, 5 MINOR
-- [ ] Wave 0c: amendments from review (IN PROGRESS, `architect`)
-- [ ] commit `feat(wave-0): ...`
+- [x] Wave 0c: amendments from review (DONE, see below)
+- [x] commit `feat(wave-0)` — see below
 
-### Wave 0c — review amendments (IN PROGRESS)
+### Wave 0c — review amendments (DONE)
+All five landed; gate re-verified green by orchestrator; committed as `1a1209c feat(wave-0): ...`
+(73 routes total, M9 now 8). Architect also closed two further ownership gaps it found:
+`mcp` → `agent-engineer`, `checklist` → `platform-engineer`.
+Orchestrator additionally moved `apps/web/src/content/modules.ts` →
+`apps/web/src/app/modules.config.ts` to resolve a nav-vs-content ownership collision between
+`frontend-shell` and `content-writer`, and added `.gitattributes` (`* text=auto eol=lf`) before
+the first commit to stop CRLF churn across 10 agents.
+
+<details><summary>original 0c item list</summary>
 Routed to `architect` (owns `packages/shared/**` + `docs/contracts.md`):
 - [ ] M9 cost lab: add `batching-sim` + `context-trim-sim` (2 of 4 mandated levers were missing)
 - [ ] M9 reliability-sim: cover idempotency + queues
@@ -71,41 +80,91 @@ Routed to `backend-core` in the Wave 1 brief (it owns those files):
 Deferred to Wave 3 `architect` (already TODO-marked in the Dockerfiles):
 - [ ] nginx proxy conf, node_modules copy verification, container healthchecks
 
+</details>
+
+- [x] commit `feat(wave-0): monorepo scaffold, shared contracts, SQLite, API/SSE route table` (`1a1209c`, 106 files)
+
 ---
 
-## Wave 1 — Platform (PARALLEL: `backend-core`, `frontend-shell`, `content-writer`)
+## Wave 1 — cross-agent seam (decided before launch)
 
-### backend-core
-- [ ] `LLMProvider` impls: Anthropic, OpenAI, Ollama, MockProvider (deterministic, seeded, temperature-aware)
-- [ ] Token + cost accounting; logprobs where supported
-- [ ] Run recording + replay; `/runs`, `/traces`, `/health`
-- [ ] SSE helper, central error handler, Zod validation plugin
-- [ ] Per-IP rate limit, request IDs, Pino with redaction paths
-- [ ] `explainRun()` service (meaningful in Mock mode too)
-- [ ] Unit tests: providers, cost math
+Cross-agent seam decided up front so the three can run without collisions:
+`content-writer` owns `apps/web/src/content/types.ts` defining `GlossaryTerm`, `LearnBlock`,
+`ModuleLearnContent`, `Pitfall`, `QuizQuestion`, `PresetCopy`, `ModuleContent`, and a barrel
+exporting `MODULE_CONTENT: Record<ModuleId, ModuleContent>` + `GLOSSARY: GlossaryTerm[]`.
+`frontend-shell` codes against that exact surface. Both briefs contain it verbatim.
+`backend-core` additionally publishes `docs/backend-api.md`; `frontend-shell` publishes
+`docs/component-api.md` — those two docs are what the five Wave 2 agents build against.
 
-### frontend-shell
-- [ ] Router + nav for 11 modules
-- [ ] `<ModuleShell>` (Learn | Playground | Inspector+Why), tabs Learn/Playground/Experiments/Pitfalls
-- [ ] `<RunInspector>`, `<CompareView>` + diff, `<WhyThisHappened>`, `<GlossaryTerm>` tooltip
-- [ ] Difficulty toggle (Beginner/Intermediate/Senior) context
-- [ ] Provider/model selector, SSE streaming hook, TanStack Query setup
-- [ ] Dark/light theme, keyboard shortcuts, skeletons, empty states with "Try this"
-- [ ] WCAG AA pass
-- [ ] Documented component API exported for module agents
+---
 
-### content-writer
-- [ ] Glossary: 150+ terms (id, term, short, long, related, module)
-- [ ] Per-module Learn sections in 3 depths (plain / under the hood / senior gotchas)
-- [ ] Pitfalls per module
-- [ ] Quizzes: 5 per module
-- [ ] Preset copy text
+## Wave 1 — Platform (PARALLEL: `backend-core`, `frontend-shell`, `content-writer`) — COMPLETE
 
-- [ ] **GATE 1 green**
+### backend-core — DONE
+- [x] `LLMProvider` impls: Anthropic, OpenAI, Ollama (real REST/NDJSON wire formats via plain `fetch`,
+      no vendor SDKs) + MockProvider behind a registry
+- [x] **MockProvider sampling is real softmax math** — orchestrator verified the tests assert:
+      temp 0 = argmax regardless of topP/topK; `avgChosenProb(temp 1.8) < avgChosenProb(temp 0.2)`;
+      `topK=1` and near-zero `topP` collapse to the exact greedy string. Logprobs computed from the
+      full pre-truncation distribution. This is what makes the M1 acceptance criterion real in Mock mode.
+- [x] Deterministic `embed()` with similarity ordering (for M4/M5)
+- [x] Token + cost accounting (`approxTokenize` shared so M1 reuses it, not reimplements)
+- [x] Run recording + replay + compare; `/api/runs`, `/api/traces`, `/api/health`, `/api/models`,
+      `/api/providers`, `/api/explain-run`
+- [x] SSE helper per contracts section 2.1, central error handler, Zod validation plugin
+- [x] Per-IP rate limit (`@fastify/rate-limit`), request IDs, `withSpan()` OTel tracing helper
+- [x] `explainRun()` deriving factors from real run numbers, depth-aware
+- [x] Wave-2 module registry with guarded dynamic imports (boots with zero module folders)
+- [x] `docs/backend-api.md` published for Wave 2
+- [x] **Wave 0 security fixes, all three done** — Pino multi-level redaction + a test asserting the
+      captured log stream contains neither the PII prompt nor a key value; CORS scoped to
+      `WEB_ORIGIN`; `kv_settings` table for M8's `GuardrailConfig`
+- [x] 67 api tests
+
+### frontend-shell — DONE
+- [x] Router + nav for 11 modules, URL-synced tabs (`/m/:moduleId/<tab>`), `/glossary`, `/runs`, 404
+- [x] `<ModuleShell>` (Learn | Playground/Experiments/Pitfalls | Inspector+Why), responsive, persisted collapse
+- [x] `<RunInspector>`, `<CompareView>` + hand-rolled LCS word-diff, `<WhyThisHappened>`,
+      `<GlossaryTerm>`/`<AutoLinkedText>`
+- [x] Difficulty toggle + `useDifficulty()` (`isAtLeast`, `pick`)
+- [x] `<ProviderModelSelector>` (defaults to mock), `useSse` hook, TanStack Query + typed `lib/api.ts`
+- [x] Dark/light with no-flash boot script, keyboard shortcuts + help dialog, command palette,
+      skip link, 20 `components/ui/` primitives (no new deps), 6 persisted Zustand stores
+- [x] a11y: skip link, landmarks, focus rings, `aria-live`, reduced-motion, AA tokens both themes
+- [x] `docs/component-api.md` published for Wave 2
+- [x] 36 web tests
+- [x] Verified builds + routes with **zero** files in `src/modules/` (placeholder path), and
+      round-tripped a temp module to prove auto-pickup
+
+### content-writer — DONE (M11 follow-up in progress)
+- [x] Glossary: **172 terms** (orchestrator verified: 172 unique ids, 0 duplicates, 0 broken `related`)
+- [x] Per-module Learn in 3 genuinely distinct depths + `explain`/`underTheHood`/`seniorGotchas`
+- [x] Pitfalls: 4-5 per module (symptom, cause, fix)
+- [x] Quizzes: exactly 5 per module, all 11 modules
+- [x] Presets: 4-5 per module
+- [x] Compiled clean first try with **zero** TS errors despite having no Bash/compiler
+- [ ] M11 follow-up: `CHECKLIST_ITEMS` (40+), `DESIGN_SCENARIOS` (5+), `LEARNING_PATH` — additive
+      exports closing a gap in the `ModuleContent` shape the orchestrator originally pinned
+
+- [x] **GATE 1 green** — typecheck / lint / build PASS, **115 tests** (12 shared + 67 api + 36 web),
+      verified by orchestrator after all three agents stopped
 - [ ] `reviewer` pass on Wave 1, BLOCKER/MAJOR fixed
 - [ ] commit `feat(wave-1): ...`
 
----
+### Wave 1 deviations to record (do not re-litigate)
+- `frontend-shell` implemented section 9's web router with **`import.meta.glob`** instead of 11 literal
+  `React.lazy(() => import(...))` calls. Rationale: literal dynamic imports of non-existent paths
+  break the Vite build, whereas glob degrades to a placeholder. This satisfies the intent and is
+  invisible to Wave 2 agents (they still just create `modules/<moduleId>/index.tsx` with a default
+  export). `architect` should sync contracts section 9 wording in Wave 3.
+- `GlossaryPage` made lazy so the router's buildability does not depend on content landing.
+- Orchestrator added `WEB_ORIGIN` to `.env.example` (`backend-core` correctly refused to edit an
+  architect-owned file — escalation rule working as intended).
+- Web main chunk is 527 kB / 162 kB gzip — Vite size *warning*, not an error. Revisit code-splitting
+  in Wave 3 once Wave 2 modules land.
+- **Real-provider paths (Anthropic/OpenAI/Ollama) have never made a live call** — no keys in this
+  environment. Only pure functions unit-tested. Mock mode is fully exercised. Must be stated in the
+  final acceptance report.
 
 ## Wave 2 — Module vertical slices (PARALLEL, 5 agents)
 

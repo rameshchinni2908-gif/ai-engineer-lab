@@ -1,0 +1,68 @@
+import type { GlossaryTerm } from "../types";
+
+export const structuredOutputTerms: GlossaryTerm[] = [
+  {
+    id: "structured-output",
+    term: "Structured Output",
+    short: "Constraining an LLM's generation to a predictable machine-readable format, usually JSON matching a schema.",
+    long: "Structured output exists because raw natural-language generation is not reliably parseable by downstream code — you need the model to behave like an API, not an essay writer. The spectrum runs from weak (a prompt that merely asks for JSON) to strong (provider-side JSON mode, grammar-constrained decoding, or forced tool calls), and the right choice depends on how much failure your downstream system can tolerate; anything feeding an automated pipeline without human review should use the strongest guarantee the provider offers.",
+    related: ["json-mode", "constrained-decoding", "function-calling", "schema-repair"],
+    moduleId: "structured",
+  },
+  {
+    id: "json-mode",
+    term: "JSON Mode",
+    short: "A provider flag that constrains the model's token sampling to always produce syntactically valid JSON.",
+    long: "JSON mode guarantees valid JSON syntax (balanced braces, quoted keys, valid types) but critically does not guarantee the JSON matches any particular schema — the model can still omit required fields, use the wrong types, or hallucinate extra fields unless you also validate against a schema after generation. It is enforced at the decoding level (invalid-JSON tokens are masked out before sampling), which is why it is much more reliable than prompt-only 'please return JSON' instructions.",
+    related: ["structured-output", "constrained-decoding", "schema-repair"],
+    moduleId: "structured",
+  },
+  {
+    id: "constrained-decoding",
+    term: "Constrained Decoding",
+    short: "Masking out any token that would violate a target grammar/schema at every decoding step, so invalid output is never sampled.",
+    long: "Unlike post-hoc validation (generate, then check), constrained decoding prevents invalid tokens from being chosen in the first place by intersecting the model's probability distribution with the set of tokens that keep the output grammatically valid at every single step. This gives much stronger guarantees than prompting alone, but it operates purely at the syntax level — a schema-conformant JSON object can still contain semantically wrong or hallucinated field values, so you still need application-level validation of content, not just structure.",
+    related: ["json-mode", "grammar-based-decoding", "structured-output"],
+    moduleId: "structured",
+  },
+  {
+    id: "grammar-based-decoding",
+    term: "Grammar-Based Decoding (GBNF and similar)",
+    short: "Constrained decoding driven by a formal grammar (e.g. GBNF) rather than just a JSON-schema subset.",
+    long: "Grammar-based decoding generalizes constrained decoding beyond 'valid JSON matching this schema' to arbitrary formal languages — regex-like patterns, custom DSLs, even restricted programming-language subsets — which is common in local-inference stacks (llama.cpp's GBNF format being a well-known example). The trade-off versus simpler JSON-schema-only constraint systems is flexibility for complexity: grammars are more powerful but harder to author and debug correctly, and a malformed grammar can silently make certain valid outputs unreachable.",
+    related: ["constrained-decoding", "json-mode"],
+    moduleId: "structured",
+  },
+  {
+    id: "function-calling",
+    term: "Function Calling",
+    short: "A model capability where the model, instead of (or alongside) text, emits a structured request to invoke a named function with arguments.",
+    long: "Function calling turns the model into a dispatcher: given a list of available function signatures, it decides whether and which function to call and with what arguments, formatted as structured data your code parses and executes — the model never actually runs anything itself. The arguments are still model-generated text coerced into a schema, so they can be wrong or incomplete even when well-formed, which is why production tool-calling code validates arguments before executing side effects, especially for anything destructive or costly.",
+    related: ["tool-calling", "structured-output", "parallel-tool-calls"],
+    moduleId: "structured",
+  },
+  {
+    id: "tool-calling",
+    term: "Tool Calling",
+    short: "The broader pattern of giving a model a catalog of callable tools (functions, APIs, code execution) and letting it decide when to invoke them.",
+    long: "Tool calling is function calling applied in a loop: the model's tool-call request is executed by your application code, the result is appended back into the conversation as a tool-result message, and the model continues — this round-trip can repeat multiple times per turn. Reliability failure modes include the model calling a tool with malformed or nonsensical arguments, calling a tool when it wasn't actually needed, or failing to call a tool it clearly should have — all of which argue for validating arguments, logging every call, and never granting a tool more privilege than the task strictly requires.",
+    related: ["function-calling", "agent-loop", "least-privilege", "tool-abuse"],
+    moduleId: "structured",
+  },
+  {
+    id: "schema-repair",
+    term: "Schema Repair",
+    short: "Automatically re-prompting a model (showing it the validation errors) to fix output that failed schema validation.",
+    long: "Schema repair closes the gap left by JSON mode's syntax-only guarantee: after validating generated JSON against your actual schema, failures are fed back to the model as explicit error messages ('field X is required but missing') so it can correct them in a follow-up call, rather than failing the whole request. Each repair attempt is itself a real LLM call with its own cost and latency, so production systems cap the number of attempts and have a defined fallback (return an error, use a default, or escalate) once the cap is hit.",
+    related: ["json-mode", "structured-output"],
+    moduleId: "structured",
+  },
+  {
+    id: "parallel-tool-calls",
+    term: "Parallel Tool Calls",
+    short: "A model emitting multiple independent tool-call requests in a single turn, to be executed concurrently.",
+    long: "Parallel tool calls reduce round-trip latency when a task genuinely needs several independent pieces of information (e.g. look up weather in three cities at once) by letting the application execute all requested calls concurrently and return all results together before the model continues. They introduce ordering and partial-failure complexity your tool-execution layer must handle explicitly — what happens to the other calls' results if one tool call fails is a design decision, not something to leave implicit.",
+    related: ["tool-calling", "function-calling"],
+    moduleId: "structured",
+  },
+];

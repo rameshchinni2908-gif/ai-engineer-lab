@@ -1,0 +1,248 @@
+import type { DesignScenario } from "../types";
+
+/** Scenarios: support RAG at scale, agentic billing actions, prompt-to-RAG migration. */
+export const designScenariosA: DesignScenario[] = [
+  {
+    id: "scenario-support-rag-2m-docs",
+    title: "Customer-support RAG over 2M documents with citations and a freshness SLA",
+    brief:
+      "Design a RAG system that answers customer-support questions grounded in roughly 2 million internal documents (CMS articles, wiki pages, historical tickets). Every answer must cite its sources, and corrections to source documents must be reflected in answers within a defined freshness SLA. The system sits inside a live support chat, so latency matters.",
+    requirements: [
+      "Answer customer questions grounded in up to 2M internal documents across multiple source systems",
+      "Every answer includes verifiable citations back to specific source chunks",
+      "A newly published or corrected document is reflected in answers within a defined freshness SLA (minutes, not days)",
+      "p95 end-to-end latency suitable for a live support chat interaction",
+    ],
+    constraints: [
+      "Source documents live in at least three different systems (CMS, wiki, ticketing) with different update patterns and APIs",
+      "Internal-only documents must never be exposed to the customer-facing surface",
+      "Cost per query must stay within a defined per-ticket budget",
+    ],
+    referenceArchitecture: {
+      summary:
+        "A query path (client → gateway → RAG service → hybrid retrieval → rerank → generation) runs alongside an independent ingestion path that keeps the index fresh, with a freshness tracker the RAG service consults before trusting a citation.",
+      nodes: [
+        { id: "client", label: "Support Agent UI", kind: "client" },
+        { id: "api-gateway", label: "API Gateway / BFF", kind: "service" },
+        { id: "rag-service", label: "RAG Query Service", kind: "service" },
+        { id: "embedding-service", label: "Embedding Model", kind: "model" },
+        { id: "vector-store", label: "Vector DB (sharded by document category)", kind: "store" },
+        { id: "bm25-index", label: "BM25 Keyword Index", kind: "store" },
+        { id: "reranker", label: "Cross-Encoder Reranker", kind: "model" },
+        { id: "llm", label: "Generation LLM", kind: "model" },
+        { id: "cache", label: "Semantic/Response Cache", kind: "cache" },
+        { id: "doc-ingestion", label: "Ingestion & Re-Index Pipeline", kind: "service" },
+        { id: "source-docs", label: "Source Systems (CMS, Wiki, Tickets)", kind: "external" },
+        { id: "freshness-tracker", label: "Index Freshness Monitor", kind: "service" },
+        { id: "trace-store", label: "Run / Trace Store", kind: "store" },
+      ],
+      edges: [
+        { from: "client", to: "api-gateway" },
+        { from: "api-gateway", to: "rag-service" },
+        { from: "rag-service", to: "cache", label: "check semantic cache first" },
+        { from: "rag-service", to: "embedding-service", label: "embed query" },
+        { from: "rag-service", to: "vector-store", label: "vector search" },
+        { from: "rag-service", to: "bm25-index", label: "keyword search" },
+        { from: "rag-service", to: "reranker", label: "rerank fused candidates" },
+        { from: "rag-service", to: "llm", label: "generate grounded, cited answer" },
+        { from: "rag-service", to: "freshness-tracker", label: "check staleness before citing" },
+        { from: "rag-service", to: "trace-store", label: "persist run + retrieval debug" },
+        { from: "doc-ingestion", to: "source-docs", label: "pull updates" },
+        { from: "doc-ingestion", to: "embedding-service", label: "embed changed chunks" },
+        { from: "doc-ingestion", to: "vector-store", label: "upsert vectors" },
+        { from: "doc-ingestion", to: "bm25-index", label: "update keyword index" },
+        { from: "doc-ingestion", to: "freshness-tracker", label: "report new index timestamp" },
+      ],
+    },
+    keyDecisions: [
+      {
+        decision: "How to meet the freshness SLA",
+        options: [
+          "Real-time, webhook-triggered incremental re-index per document change",
+          "Scheduled batch re-index (e.g. hourly sweep)",
+          "On-demand re-index only when a query happens to touch a changed document",
+        ],
+        recommendation: "Webhook-triggered incremental re-index for high-churn sources, with a scheduled batch sweep as a safety net for missed events.",
+        rationale: "A minutes-scale freshness SLA rules out pure batch scheduling alone; a safety-net sweep catches webhook delivery failures without requiring every source system to guarantee at-least-once delivery.",
+      },
+      {
+        decision: "Retrieval method",
+        options: ["Vector-only search", "BM25-only search", "Hybrid (BM25 + vector) fused with Reciprocal Rank Fusion"],
+        recommendation: "Hybrid search with RRF.",
+        rationale: "Support queries mix exact terms (order numbers, error codes) that BM25 catches with paraphrased questions that vector search catches — hybrid covers both failure modes a single retriever would miss.",
+      },
+      {
+        decision: "How to make citations trustworthy, not just present",
+        options: ["Trust the model's self-reported citations as-is", "Add an automated post-generation verification pass checking each citation against its chunk", "Rely on periodic human spot-checks only"],
+        recommendation: "Automated verification pass on every answer, supplemented by periodic human audit of a sample.",
+        rationale: "A citation that doesn't actually support its claim reintroduces the exact hallucination risk citations exist to catch — this needs to be checked on every answer, not sampled after the fact, given it's a live customer-facing surface.",
+      },
+    ],
+    tradeoffs: [
+      "Real-time incremental re-indexing reduces staleness risk but adds real operational complexity (webhook reliability, partial-failure handling) compared to simple batch re-indexing.",
+      "Hybrid search improves recall on both exact-term and paraphrased queries at the cost of running two retrievers and a fusion step on every query, adding latency.",
+      "Automated citation verification adds an extra LLM call per answer, trading cost and latency for materially higher trust in what gets shown to a customer.",
+      "Sharding the vector store by document category improves query locality and re-index blast radius but adds operational surface area versus one large collection.",
+    ],
+    rubric: [
+      { criterion: "Freshness handling", good: "Explicitly addresses re-index triggering, propagation lag, and how staleness risk is surfaced or mitigated for citations", bad: "Assumes the index is simply always up to date with no described mechanism" },
+      { criterion: "Retrieval design", good: "Chooses hybrid search with a rationale tied to this corpus's actual query mix (exact terms + paraphrases)", bad: "Picks a single retrieval method with no discussion of its failure modes at this scale" },
+      { criterion: "Citation trustworthiness", good: "Describes a concrete verification mechanism for citations, not just 'the model cites its sources'", bad: "Treats model-generated citations as self-evidently correct with no verification" },
+      { criterion: "Scale and isolation", good: "Addresses indexing/sharding appropriate for 2M documents and explicitly excludes internal-only documents from the customer-facing index", bad: "Designs as if the corpus were a few hundred documents, or doesn't address the internal/external document boundary" },
+    ],
+    relatedModules: ["rag", "embeddings", "production", "evals"],
+  },
+  {
+    id: "scenario-agent-billing-actions",
+    title: "An agent that takes real actions in a billing system",
+    brief:
+      "Design an internal support-tooling agent that can look up account/invoice state and, when necessary, issue refunds or adjust charges in a real billing/payment system on a support rep's behalf. The agent must not be able to move money without appropriate review, and must never double-execute a financial action on retry.",
+    requirements: [
+      "The agent can read account and invoice state to answer support questions",
+      "The agent can propose and, when appropriate, execute refunds/charge adjustments",
+      "No financial write action executes without an appropriate approval/validation checkpoint",
+      "A retried or duplicated request never results in a duplicate financial action",
+    ],
+    constraints: [
+      "The payment provider's write API has real, irreversible side effects",
+      "Support reps need reasonably fast turnaround, so every action can't require a multi-day manual review",
+      "All financial actions must be auditable after the fact",
+    ],
+    referenceArchitecture: {
+      summary:
+        "A support rep initiates a request through the orchestrator, which separates read-only billing lookups (unrestricted) from write actions (idempotency-checked and gated behind approval), with every write audited.",
+      nodes: [
+        { id: "requester", label: "Support Rep (initiates request)", kind: "client" },
+        { id: "approver", label: "Billing Manager (approves dangerous actions)", kind: "client" },
+        { id: "api-gateway", label: "API Gateway", kind: "service" },
+        { id: "agent-orchestrator", label: "Agent Orchestrator / Loop Controller", kind: "service" },
+        { id: "llm", label: "Planning / Reasoning LLM", kind: "model" },
+        { id: "billing-read-api", label: "Billing System (read: invoices, account state)", kind: "external" },
+        { id: "payment-write-api", label: "Payment Provider (write: refunds, charges)", kind: "external" },
+        { id: "idempotency-store", label: "Idempotency Key Store", kind: "store" },
+        { id: "audit-log", label: "Audit Log", kind: "store" },
+        { id: "trace-store", label: "Run / Trace Store", kind: "store" },
+      ],
+      edges: [
+        { from: "requester", to: "api-gateway" },
+        { from: "api-gateway", to: "agent-orchestrator" },
+        { from: "agent-orchestrator", to: "llm", label: "decide next step" },
+        { from: "agent-orchestrator", to: "billing-read-api", label: "read-only tool call, no approval needed" },
+        { from: "agent-orchestrator", to: "idempotency-store", label: "check/record key before any write" },
+        { from: "agent-orchestrator", to: "approver", label: "approval_request for a dangerous write" },
+        { from: "approver", to: "agent-orchestrator", label: "approve or deny" },
+        { from: "agent-orchestrator", to: "payment-write-api", label: "execute write only after approval + idempotency check" },
+        { from: "agent-orchestrator", to: "audit-log", label: "record every write action and its approval" },
+        { from: "agent-orchestrator", to: "trace-store", label: "persist full step trace" },
+      ],
+    },
+    keyDecisions: [
+      {
+        decision: "How to gate real-money-moving actions",
+        options: ["Fully autonomous execution with no review", "Human-in-the-loop approval required for every write", "Approval required only above a configured dollar threshold"],
+        recommendation: "Mandatory approval for all refund/charge-adjustment actions regardless of amount, with a possible higher-friction second approval above a large threshold.",
+        rationale: "A pure dollar-threshold policy can be gamed by a sequence of several small actions that each individually clear the threshold; given these are irreversible financial actions, the cost of friction is worth the certainty of review on every write.",
+      },
+      {
+        decision: "Preventing duplicate financial actions on retry",
+        options: ["No special handling — rely on manual reconciliation after the fact", "Idempotency keys enforced on every write tool call"],
+        recommendation: "Idempotency keys enforced at the tool-execution layer for every write.",
+        rationale: "A timeout gives no information about whether the original write succeeded; idempotency keys are the only mechanism that lets a retry safely recognize and skip a duplicate execution rather than relying on after-the-fact cleanup of an already-irreversible action.",
+      },
+      {
+        decision: "Tool scope design",
+        options: ["One broad 'billing-api' tool with full read/write access", "Separate read-only and write tools, independently allow-listed"],
+        recommendation: "Separate tools, with only the write tool marked dangerous and gated.",
+        rationale: "Splitting read and write into distinct tools means the registry-level least-privilege control actually has something meaningful to restrict — a single broad tool makes 'only allow reads' impossible to express.",
+      },
+    ],
+    tradeoffs: [
+      "Mandatory approval on every write reduces throughput for support reps compared to threshold-based autonomy, but eliminates the sequence-of-small-actions gap a threshold policy leaves open.",
+      "Idempotency key enforcement adds a bookkeeping layer (key generation, storage, lookup) to every write path, in exchange for eliminating duplicate-charge risk entirely rather than relying on reconciliation.",
+      "Separate read/write tools increase the number of tool definitions to maintain, but make the security boundary (what can and can't cause a real side effect) far easier to reason about and audit.",
+    ],
+    rubric: [
+      { criterion: "Guardrails on real side effects", good: "Requires approval or equivalently strong validation for every financial write, with a clearly reasoned trigger", bad: "Allows the agent to execute financial writes autonomously with no review checkpoint" },
+      { criterion: "Idempotency", good: "Explicitly designs an idempotency mechanism for write retries", bad: "Doesn't address what happens if a write request times out and gets retried" },
+      { criterion: "Least privilege", good: "Separates read and write tool access with independent allow-listing", bad: "Grants one broad tool with full read/write access to the billing system" },
+      { criterion: "Failure-mode handling", good: "Describes what happens on an approval timeout (safe default: no action taken, audited)", bad: "Doesn't address what happens if no one responds to an approval request" },
+    ],
+    relatedModules: ["agents", "security", "production"],
+  },
+  {
+    id: "scenario-prompt-to-rag-migration",
+    title: "Migrating a prompt-only feature to RAG under a fixed latency budget",
+    brief:
+      "An existing feature answers questions using a single prompt-only LLM call with no retrieval. Users increasingly ask about content the model wasn't trained on or that has changed since training. Design a migration to a RAG-based approach without exceeding the feature's existing p95 latency budget, and without a risky big-bang cutover.",
+    requirements: [
+      "Answers must incorporate up-to-date, retrievable source content where relevant",
+      "The feature's existing p95 latency budget must not be exceeded by the migration",
+      "The migration must be reversible/rollback-able if quality regresses",
+    ],
+    constraints: [
+      "Adding retrieval (embed query, search, possibly rerank) adds latency on top of the existing single LLM call",
+      "The existing feature has significant real traffic that can't simply be cut over all at once",
+      "The team has no prior production RAG experience",
+    ],
+    referenceArchitecture: {
+      summary:
+        "The existing feature service gains a retrieval step inserted before generation, with a response cache to absorb repeat queries and a transparent fallback to the original prompt-only path if retrieval is slow or fails.",
+      nodes: [
+        { id: "client", label: "Client", kind: "client" },
+        { id: "api-gateway", label: "API Gateway", kind: "service" },
+        { id: "feature-service", label: "Feature Service (prompt-only, gaining RAG)", kind: "service" },
+        { id: "cache", label: "Response Cache", kind: "cache" },
+        { id: "embedding-service", label: "Embedding Model", kind: "model" },
+        { id: "vector-store", label: "Vector DB", kind: "store" },
+        { id: "doc-ingestion", label: "Ingestion Pipeline", kind: "service" },
+        { id: "source-docs", label: "Source Documents", kind: "external" },
+        { id: "llm", label: "Generation LLM", kind: "model" },
+        { id: "trace-store", label: "Run / Trace Store", kind: "store" },
+      ],
+      edges: [
+        { from: "client", to: "api-gateway" },
+        { from: "api-gateway", to: "feature-service" },
+        { from: "feature-service", to: "cache", label: "check response cache first" },
+        { from: "feature-service", to: "embedding-service", label: "embed query (new)" },
+        { from: "feature-service", to: "vector-store", label: "retrieve small top-k (new)" },
+        { from: "feature-service", to: "llm", label: "generate, grounded if retrieval succeeded, prompt-only otherwise" },
+        { from: "doc-ingestion", to: "source-docs" },
+        { from: "doc-ingestion", to: "embedding-service" },
+        { from: "doc-ingestion", to: "vector-store" },
+        { from: "feature-service", to: "trace-store" },
+      ],
+    },
+    keyDecisions: [
+      {
+        decision: "Retrieval depth versus the latency budget",
+        options: ["Large top-k with reranking", "Small top-k, no reranking initially", "Parallelize retrieval alongside a speculative generation start"],
+        recommendation: "Start with a small top-k (e.g. 5) and no reranking; measure actual latency impact before adding reranking.",
+        rationale: "Reranking adds a real extra model call's worth of latency — committing to it before measuring whether small-top-k retrieval alone meets the quality bar risks blowing the latency budget for no proven benefit.",
+      },
+      {
+        decision: "Offsetting the latency RAG adds",
+        options: ["Accept the added latency against the budget", "Use prompt caching for the stable instruction portion of the prompt", "Reduce max output length to offset retrieval latency"],
+        recommendation: "Combine prompt caching for the stable system instructions with a modest reduction in max output tokens.",
+        rationale: "Prompt caching directly targets TTFT for the part of the prompt that doesn't change per request, which is close to a free latency win; trimming output length is a cheap, measurable way to claw back the remainder of the budget.",
+      },
+      {
+        decision: "Rollout strategy",
+        options: ["Big-bang cutover to RAG for all traffic", "Shadow RAG answers against the existing prompt-only answers before switching anyone", "Feature-flag gradual rollout by user segment"],
+        recommendation: "Shadow first to validate quality and measure real latency against real traffic, then a gradual feature-flagged rollout.",
+        rationale: "Shadowing surfaces real-traffic quality and latency issues with zero user-facing risk before committing to any live traffic, which is especially valuable given the team has no prior production RAG experience.",
+      },
+    ],
+    tradeoffs: [
+      "A small top-k keeps latency within budget but risks lower recall on harder queries than a larger, reranked retrieval set would achieve.",
+      "Shadow testing before rollout delays the migration timeline but catches quality and latency regressions before any real user is exposed to them.",
+      "Falling back transparently to the prompt-only path on retrieval failure preserves availability but can silently serve an unsourced answer unless that fallback is explicitly flagged in telemetry for later review.",
+    ],
+    rubric: [
+      { criterion: "Latency budget discipline", good: "Explicitly accounts for where RAG's added latency comes from and how it's offset, with a measurement plan before committing to more retrieval complexity", bad: "Adds retrieval without any discussion of its latency cost against the existing budget" },
+      { criterion: "Fallback handling", good: "Defines a transparent, logged fallback to the prompt-only path on retrieval failure/timeout", bad: "Assumes retrieval always succeeds and doesn't address its failure mode" },
+      { criterion: "Rollout safety", good: "Uses shadow testing and/or gradual rollout given the team's inexperience with RAG in production", bad: "Proposes a big-bang cutover with no staged validation" },
+      { criterion: "Evidence before complexity", good: "Proposes measuring the simplest retrieval configuration first before adding reranking/multi-query/etc.", bad: "Front-loads every advanced RAG technique without justifying the added cost/latency against measured need" },
+    ],
+    relatedModules: ["rag", "fundamentals", "production"],
+  },
+];

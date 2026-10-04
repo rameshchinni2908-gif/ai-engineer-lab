@@ -184,6 +184,19 @@ CREATE TABLE IF NOT EXISTS guardrail_events (
 CREATE INDEX IF NOT EXISTS idx_guardrail_events_run_id ON guardrail_events (run_id);
 CREATE INDEX IF NOT EXISTS idx_guardrail_events_created_at ON guardrail_events (created_at);
 
+-- Generic server-wide JSON key/value settings store. Wave 2's
+-- eval-security-engineer persists the single-row `GuardrailConfig` (contracts
+-- §4 M8 `GET/PUT /guardrails/config`) here as `kv_settings('guardrail_config', <json>)`
+-- rather than a bespoke table, since it is just one JSON blob with no auth/user
+-- scoping in v1. Any other module needing a similar single-row JSON setting
+-- (no query/filter requirements) should reuse this table with its own key
+-- rather than adding a new one-off table.
+CREATE TABLE IF NOT EXISTS kv_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS audit_log (
   id TEXT PRIMARY KEY,
   actor TEXT NOT NULL DEFAULT 'system',
