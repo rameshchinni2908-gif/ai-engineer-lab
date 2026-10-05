@@ -3,8 +3,7 @@ import { z } from "zod";
 import { ChunkConfigSchema, ProviderIdSchema } from "@ail/shared";
 import { parseBody } from "../../plugins/validation.js";
 import { unprocessableError } from "../../middleware/errors.js";
-import { getProvider } from "../../providers/registry.js";
-import { computeSimilarity, projectPCA2D, chunkText } from "../../services/embeddings/index.js";
+import { computeSimilarity, projectPCA2D, chunkText, embedTexts } from "../../services/embeddings/index.js";
 
 const EmbedBodySchema = z.object({
   texts: z.array(z.string()).min(1),
@@ -32,13 +31,19 @@ const ChunkPreviewBodySchema = z.object({
 const embeddingsRoutes: FastifyPluginAsync = async (app) => {
   app.post("/embed", async (req) => {
     const { texts, providerId, model } = parseBody(EmbedBodySchema, req);
-    const provider = getProvider(providerId);
-    if (!provider.embed) {
-      throw unprocessableError(`Provider "${providerId}" does not support embeddings`);
-    }
-    const embeddings = await provider.embed(texts, model);
-    const dim = embeddings[0]?.length ?? 0;
-    return { embeddings, model, dim };
+    // Routed through `embedTexts` (never `getProvider(...).embed()` directly
+    // from a route) so this records a Run per contracts.md §2.3 - `embed()`
+    // is an `LLMProvider` method just like `generate()`/`stream()`. The
+    // response additively carries `runId` so the frontend can wire
+    // `activeRunId` and get a real "Why this happened" explanation.
+    const { embeddings, dim, run } = await embedTexts({
+      texts,
+      providerId,
+      model,
+      moduleId: "embeddings",
+      feature: "embed",
+    });
+    return { embeddings, model, dim, runId: run.id };
   });
 
   app.post("/project-2d", async (req) => {

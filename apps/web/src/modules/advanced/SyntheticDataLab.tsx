@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Button, Textarea, Input, Label, Card, CardContent, CardHeader, CardTitle, Badge } from "@/components/ui";
-import { useSse } from "@/hooks/useSse";
+import { StreamingRegion, type StreamingRegionStatus } from "@/components/StreamingRegion";
+import { useSse, type SseStatus } from "@/hooks/useSse";
 
 const DEFAULT_SEEDS = JSON.stringify(
   [
@@ -21,6 +22,22 @@ interface FilterStageData {
   droppedDuplicates: number;
   droppedTooShort: number;
   note: string;
+}
+
+/** Maps the connection-level `useSse` status onto `StreamingRegion`'s status union. */
+function toStreamingRegionStatus(status: SseStatus): StreamingRegionStatus {
+  switch (status) {
+    case "idle":
+    case "aborted":
+      return "idle";
+    case "connecting":
+    case "streaming":
+      return "streaming";
+    case "done":
+      return "complete";
+    case "error":
+      return "error";
+  }
 }
 
 /**
@@ -92,14 +109,21 @@ export function SyntheticDataLab(): JSX.Element {
       </div>
       {parseError && <p className="text-sm text-destructive" role="alert">{parseError}</p>}
 
-      <ol className="space-y-1" aria-label="Generated examples, streaming">
-        {exampleEvents.map((e) => (
-          <li key={e.data.index} className="rounded-md border border-border p-2 text-xs">
-            <span className="font-medium">#{e.data.index + 1}</span>{" "}
-            <code className="text-muted-foreground">{JSON.stringify(e.data.example)}</code>
-          </li>
-        ))}
-      </ol>
+      <StreamingRegion
+        text={exampleEvents.map((e) => JSON.stringify(e.data.example)).join("\n")}
+        status={toStreamingRegionStatus(status)}
+        tokenCount={exampleEvents.length}
+        label="Synthetic example generation"
+      >
+        <ol className="space-y-1" aria-label="Generated examples, streaming">
+          {exampleEvents.map((e) => (
+            <li key={e.data.index} className="rounded-md border border-border p-2 text-xs">
+              <span className="font-medium">#{e.data.index + 1}</span>{" "}
+              <code className="text-muted-foreground">{JSON.stringify(e.data.example)}</code>
+            </li>
+          ))}
+        </ol>
+      </StreamingRegion>
 
       {filterEvent && (
         <Card>

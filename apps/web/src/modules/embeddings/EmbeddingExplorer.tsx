@@ -29,8 +29,12 @@ function cosine(a: number[], b: number[]): number {
   return denom === 0 ? 0 : dot / denom;
 }
 
+export interface EmbeddingExplorerProps {
+  onRunComplete?: (runId: string) => void;
+}
+
 /** M4: embedding explorer - 2D PCA projection scatter, click a point to see its nearest neighbours by cosine similarity. */
-export function EmbeddingExplorer(): JSX.Element {
+export function EmbeddingExplorer({ onRunComplete }: EmbeddingExplorerProps): JSX.Element {
   const storeProviderId = useProviderModelStore((s) => s.providerId);
   const storeModel = useProviderModelStore((s) => s.model);
   const [providerId, setProviderId] = React.useState(storeProviderId);
@@ -54,18 +58,19 @@ export function EmbeddingExplorer(): JSX.Element {
     setError(null);
     setSelected(null);
     try {
-      const { embeddings: vecs } = await embeddingsApi.embed(lines, providerId, model);
+      const { embeddings: vecs, runId } = await embeddingsApi.embed(lines, providerId, model);
       const { points: pts, note: n } = await embeddingsApi.project2d(vecs, "pca");
       setTexts(lines);
       setEmbeddings(vecs);
       setPoints(pts);
       setNote(n);
+      onRunComplete?.(runId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to embed/project");
     } finally {
       setLoading(false);
     }
-  }, [raw, providerId, model]);
+  }, [raw, providerId, model, onRunComplete]);
 
   const neighbours = React.useMemo(() => {
     if (selected === null || !embeddings) return [];

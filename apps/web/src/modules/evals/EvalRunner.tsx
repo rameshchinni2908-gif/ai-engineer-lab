@@ -151,6 +151,29 @@ export function EvalRunner({ datasetId, onRunComplete, onSuiteComplete }: EvalRu
           </div>
         </div>
 
+        {(metricIds.has("rag_faithfulness") ||
+          metricIds.has("rag_answer_relevance") ||
+          metricIds.has("rag_context_precision") ||
+          metricIds.has("rag_context_recall")) && (
+          <p className="rounded-md border border-amber-400 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200">
+            Simulated, for intuition only - the four RAG metrics are deterministic lexical-overlap
+            heuristics (word-set overlap between output/context/query), not a real NLI-based
+            faithfulness or relevance model. They work offline with zero keys but should not be
+            read as ground truth.
+          </p>
+        )}
+
+        {(metricIds.has("llm_judge") || metricIds.has("pairwise")) &&
+          variants.some((v) => v.providerId === "mock") && (
+            <p className="rounded-md border border-amber-400 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200">
+              Simulated, for intuition only - at least one variant uses the mock provider, whose
+              templated text has no real relationship to the judge prompt. For those variants,
+              <code> llm_judge</code>/<code>pairwise</code> scores come from a lexical-overlap
+              heuristic against the expected answer, not a real semantic judgment. Select a real
+              provider/model for an actual LLM-as-judge call.
+            </p>
+          )}
+
         {metricIds.has("llm_judge") && (
           <div>
             <Label htmlFor="judge-rubric">Judge rubric (editable)</Label>

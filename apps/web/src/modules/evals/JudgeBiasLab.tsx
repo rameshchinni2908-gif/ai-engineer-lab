@@ -32,6 +32,13 @@ export function JudgeBiasLab(): JSX.Element {
 
   return (
     <div className="space-y-6">
+      <p className="rounded-md border border-amber-400 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200">
+        Simulated, for intuition only - these three demos are deterministic offline
+        simulations of documented bias patterns (position, verbosity, self-enhancement), not
+        bias measured from a live provider call. They illustrate what each bias LOOKS like and
+        why the standard mitigation (order-swapping, length normalization, third-party judges)
+        works, never a real judge model&apos;s actual behavior.
+      </p>
       <Card>
         <CardHeader>
           <CardTitle>Position bias: before vs. after order-swap mitigation</CardTitle>

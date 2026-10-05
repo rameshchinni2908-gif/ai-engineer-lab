@@ -24,14 +24,14 @@ const PRESET_PARAMS: Record<string, EmbeddingsPresetParams> = {
 };
 
 /**
- * M4: Embeddings & Vector DB. M4 has no LLM-generation routes (every
- * `/embeddings`/`/vector` route is a deterministic computation, not a
- * `provider.generate()` call) - `activeRunId` legitimately stays unset for
- * most of this module, and the Run Inspector / "Why this happened" panes
- * correctly show their own empty state rather than a fabricated run.
+ * M4: Embeddings & Vector DB. `embed()` is an `LLMProvider` method, so every
+ * `/embeddings/embed` and `/vector/hybrid-search` call records a Run
+ * (contracts.md §2.3, via `services/embeddings/embed.ts`) - each playground
+ * sub-component reports its resulting `runId` here so the Run Inspector /
+ * "Why this happened" panes show a real explanation of that embedding call.
  */
 export default function EmbeddingsModulePage(): JSX.Element {
-  const [activeRunId] = React.useState<string | undefined>();
+  const [activeRunId, setActiveRunId] = React.useState<string | undefined>();
   const [activePresetId, setActivePresetId] = React.useState<string | undefined>();
   const content = MODULE_CONTENT.embeddings;
   const presets = content.presets.map((p) => ({ ...p, params: PRESET_PARAMS[p.id] }));
@@ -62,14 +62,14 @@ export default function EmbeddingsModulePage(): JSX.Element {
       }
       playground={
         <div className="space-y-6">
-          <EmbeddingExplorer />
+          <EmbeddingExplorer onRunComplete={setActiveRunId} />
           <div ref={sectionRefs.similarity}>
-            <SimilarityLab />
+            <SimilarityLab onRunComplete={setActiveRunId} />
           </div>
           <div ref={sectionRefs.chunking}>
             <ChunkingLab />
           </div>
-          <VectorPlayground />
+          <VectorPlayground onRunComplete={setActiveRunId} />
         </div>
       }
       experiments={
@@ -78,7 +78,7 @@ export default function EmbeddingsModulePage(): JSX.Element {
             <IndexTradeoffs />
           </div>
           <div ref={sectionRefs.hybrid}>
-            <HybridAndRerank />
+            <HybridAndRerank onRunComplete={setActiveRunId} />
           </div>
           <NamespaceAndReindex />
         </div>

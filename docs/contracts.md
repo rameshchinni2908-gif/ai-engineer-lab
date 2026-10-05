@@ -268,7 +268,7 @@ orchestrator if that import path needs to move into `packages/shared` instead.
 | POST | `/rag/documents/:id/chunk` | `{ config: ChunkConfig }` | `{ chunks: Chunk[] }` | No | Persists `chunks` rows (replaces any prior chunking for this document). |
 | POST | `/rag/documents/:id/embed` | `{ providerId: ProviderId; model: string }` | `{ chunks: Chunk[] }` | No | Populates `Chunk.embedding` on the persisted rows; requires `/chunk` to have run first (409 if no chunks exist). |
 | POST | `/rag/documents/:id/index` | `{ collection: string }` | `{ ok: true; count: number }` | No | Upserts the document's embedded chunks into the named `VectorStore` collection (creates the collection if absent). |
-| POST | `/rag/query` | `{ query: string; collection: string; strategy?: "basic" \| "query-rewrite" \| "hyde" \| "multi-query" \| "parent-doc" \| "compression" \| "agentic"; topK: number; providerId: ProviderId; model: string; params?: GenerationParams }` | SSE (§2) | **Yes** | Emits one `stage` event per pipeline step (`"rewrite"`, `"retrieve"`, `"compress"`, `"generate"`, strategy-dependent) each carrying a `RetrievalDebug`-shaped payload, then streams the generation `token`s, then `run_complete` with citations in `run.output.metadata.citations: { chunkId: string; documentId: string }[]` — **Decision:** citations live in `metadata` rather than a new top-level `Run` field, since they're RAG-specific and `metadata: Record<string, unknown>` already exists for exactly this kind of module-specific extension. |
+| POST | `/rag/query` | `{ query: string; collection: string; strategy?: "basic" \| "query-rewrite" \| "hyde" \| "multi-query" \| "parent-doc" \| "compression" \| "agentic"; topK: number; providerId: ProviderId; model: string; params?: GenerationParams }` | SSE (§2) | **Yes** | Emits one `stage` event per pipeline step (`"rewrite"`, `"retrieve"`, `"compress"`, `"generate"`, strategy-dependent) each carrying a `RetrievalDebug`-shaped payload, then streams the generation `token`s, then `run_complete` with citations in `run.metadata.citations: { chunkId: string; documentId: string }[]` (top-level `Run.metadata`, NOT nested under `output` — `RunOutputSchema` has no `metadata` field) — **Decision:** citations live in `Run.metadata` rather than a new top-level `Run` field, since they're RAG-specific and `metadata: Record<string, unknown>` already exists for exactly this kind of module-specific extension. |
 | POST | `/rag/failure-mode-demo` | `{ mode: "miss" \| "ignored" \| "lost-in-middle" \| "stale"; query: string; collection: string }` | `{ diagnosis: string; fix: string; retrievalDebug: RetrievalDebug; run: Run }` | No | Deliberately engineers the named failure (e.g. for `"stale"`, queries against a snapshot of the collection taken before a document update) for teaching purposes; non-streaming since it's a single demonstrative call, not an interactive generation. |
 
 The "RAG vs long-context vs fine-tune" decision guide is static educational content — lives in
@@ -302,6 +302,8 @@ The "RAG vs long-context vs fine-tune" decision guide is static educational cont
 | GET | `/evals/suite-results/:id` | — | `EvalSuiteResult` | No | |
 | GET | `/evals/suite-results` | query `?datasetId=&page=&pageSize=` | `Paginated<EvalSuiteResult>` | No | |
 | POST | `/evals/ci-check` | `{ suiteResultId: string; thresholds: Partial<Record<MetricId, number>> }` | `{ pass: boolean; failures: { metricId: MetricId; variantIndex: number; score: number; threshold: number }[] }` | No | Same endpoint backs both the in-app regression banner and the CI CLI (a thin script in `apps/api` that POSTs here and sets `process.exitCode = pass ? 0 : 1`). |
+| POST | `/evals/judge-bias-demo` | discriminated on `demo`: `{ demo: "position" }` \| `{ demo: "verbosity"; conciseCorrect: string; verbosePadded: string }` \| `{ demo: "self_enhancement"; judgeProviderId: string; candidateProviderId: string }` | `"position"` → `{ forward: { winner: "A"\|"B"\|"tie"; rationale: string }; swapped: { winner; rationale }; biasDetected: boolean; explanation: string }`; `"verbosity"` → `{ naiveScore: number; lengthNormalizedScore: number; biasDetected: boolean; explanation: string }`; `"self_enhancement"` → `{ sameFamilyScore: number; thirdPartyJudgeScore: number; biasDetected: boolean; explanation: string }` | No | **Added post-Wave-2** (not in the original table — `eval-security-engineer` flagged the gap rather than deviating silently; see §8). Deterministic, offline, clearly-labeled-illustrative simulations of a biased judge (same honesty convention as the M10 attention-heatmap/quantization demos) — no live provider call, works identically in every mode including zero-key Mock, so "before" vs. "after" bias comparisons are reproducible and testable. Route-local schemas, not in `@ail/shared` (single-route DTOs per §0.2). |
+| POST | `/evals/judge-calibration` | `{ cases: { caseId: string; humanScore: number; judgeScore: number }[] }` | `{ n: number; agreementRate: number; meanAbsoluteError: number; correlation: number }` | No | **Added post-Wave-2** (see §8). Pure function comparing real judge scores (e.g. already produced by `/evals/run`'s `llm_judge`/`pairwise` metrics) against human-labelled scores on the same cases — "validate the judge before trusting it" workflow. `correlation` is Pearson r, NaN-safe (0 when undefined, e.g. zero-variance inputs). Route-local schemas. |
 
 ### Module 8 — Guardrails & Security (owner: `eval-security-engineer`, prefix `/guardrails`)
 
@@ -445,6 +447,9 @@ own the *content* passed into these tabs, not the shell markup itself.
 | 2026-10-04 | `/advanced/reasoning-presets`: resolved the deferred "pick one reuse path" note into a firm decision (reuse M1's `/fundamentals/sample`, no new generation route). | reviewer (Wave 0 audit) |
 | 2026-10-05 | Added optional `comparisonRunId` to `ExplainRunRequestSchema` and the §3 `/explain-run` row. The comparison-factor path in `services/explain/factors.ts` was implemented and documented in `docs/backend-api.md` but unreachable through the API, making `<CompareView>`'s "Explain This Run" a dead feature. | reviewer (Wave 1 audit) |
 | 2026-10-05 | §9.2 reworded to specify `import.meta.glob` as the web router mechanism instead of 11 literal `React.lazy(() => import(...))` calls. A literal dynamic import of a not-yet-existing path breaks the Vite build, defeating the graceful-degradation guarantee §9 exists to provide. Wave 2's obligation is unchanged (create `modules/<moduleId>/index.tsx` with a default export; never edit the router). | orchestrator (accepted frontend-shell's Wave 1 deviation) |
+| 2026-10-05 | §4 M5 `/rag/query` row corrected: citations live at top-level `Run.metadata.citations`, not `run.output.metadata` (`RunOutputSchema` has no `metadata` field). Doc-only fix; shipped code and its integration test were already correct. | reviewer (Wave 2 audit) |
+| 2026-10-05 | Added `POST /evals/judge-bias-demo` and `POST /evals/judge-calibration` to §4 M7 — implemented by `eval-security-engineer` to satisfy M7's judge-bias-education/calibration requirement, which had no route pre-listed; flagged rather than deviating silently. | eval-security-engineer (flagged), reviewer (Wave 2 audit) |
+| 2026-10-05 | §9.1 disambiguated: plugin route paths are bare/relative to the registry's injected `{ prefix: "/api/<mount prefix>" }`, with a correct/wrong example pair. Previously ambiguous wording caused 5 of 13 route folders to double-prefix their paths (e.g. `/api/evals/evals/datasets`), failing 18 tests until `backend-core`/module agents fixed their own files. | reviewer (Wave 2 audit) |
 | 2026-10-04 | Added §9 "Module registration conventions" (new seam files `apps/api/src/routes/index.ts` and `apps/web/src/app/router.tsx`, both added to §5 with owners `backend-core`/`frontend-shell`); fixed §5 API ownership gaps (`agent-engineer` now also owns `routes/services/mcp/**`, `platform-engineer` now also owns `routes/services/checklist/**`, matching routes that already existed in §4 but had no owning glob). | orchestrator (gap found during Wave 0 integration, not from the reviewer's list) |
 
 ---
@@ -492,6 +497,30 @@ never grows in Wave 2; it already accounts for every prefix in §4:
 (13 folders because M4 and M6 each split across two route prefixes; §3's shared platform routes
 — `/health`, `/models`, `/runs`, `/traces`, `/explain-run`, `/providers` — are NOT in this list,
 they stay directly in `backend-core`'s own `app.ts`/`routes/`.)
+
+**Path convention (previously ambiguous — this caused a real incident: 5 of the 13 folders
+double-prefixed their routes, e.g. `/api/evals/evals/datasets`, failing 18 tests until fixed).
+The registry registers each plugin with `{ prefix: "/api/<mount prefix>" }` from the table
+above. Fastify's `prefix` option means every path a plugin declares is RELATIVE to that
+prefix and gets it prepended automatically — plugin route paths MUST therefore be bare,
+never repeating the module's own prefix:**
+
+```ts
+// routes/agents/index.ts - CORRECT: paths are bare/relative.
+const plugin: FastifyPluginAsync = async (app) => {
+  app.post("/run", async (req, reply) => { /* ... */ });       // -> GET  /api/agents/run
+  app.get("/:id", async (req) => { /* ... */ });                // -> GET  /api/agents/:id
+};
+export default plugin;
+```
+
+```ts
+// routes/agents/index.ts - WRONG: re-adds the module's own prefix, double-mounts it.
+const plugin: FastifyPluginAsync = async (app) => {
+  app.post("/agents/run", async (req, reply) => { /* ... */ }); // -> GET  /api/agents/agents/run (!!) - 404 for every real client
+};
+export default plugin;
+```
 
 **Graceful degradation is required**: a folder in this list may not exist yet (Wave 2 in
 progress, or only partially done). The registry loads each one via a **guarded dynamic import**

@@ -13,7 +13,11 @@ import { apiFetch } from "@/lib/api";
 
 /** Typed fetchers for every M4 (`/embeddings`, `/vector`) route - contracts.md §4. */
 export const embeddingsApi = {
-  embed: (texts: string[], providerId: ProviderId, model: string): Promise<{ embeddings: number[][]; model: string; dim: number }> =>
+  embed: (
+    texts: string[],
+    providerId: ProviderId,
+    model: string,
+  ): Promise<{ embeddings: number[][]; model: string; dim: number; runId: string }> =>
     apiFetch("/embeddings/embed", { method: "POST", body: { texts, providerId, model } }),
 
   project2d: (embeddings: number[][], method: "pca" | "umap"): Promise<{ points: { x: number; y: number }[]; note?: string }> =>
@@ -55,7 +59,7 @@ export const embeddingsApi = {
     providerId: ProviderId,
     model: string,
     rrfK?: number,
-  ): Promise<{ results: RetrievalResult[]; debug: RetrievalDebug }> =>
+  ): Promise<{ results: RetrievalResult[]; debug: RetrievalDebug; runId: string }> =>
     apiFetch("/vector/hybrid-search", { method: "POST", body: { collection, query, topK, providerId, model, rrfK } }),
 
   rerank: (query: string, candidates: RetrievalResult[]): Promise<{ before: RetrievalResult[]; after: RetrievalResult[] }> =>

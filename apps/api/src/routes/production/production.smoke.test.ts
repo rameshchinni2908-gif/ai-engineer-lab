@@ -60,7 +60,11 @@ describe("production/advanced/checklist routes are registered and reachable", ()
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.tokens.length).toBeGreaterThan(0);
-    expect(body.note).toBeDefined();
+    // Assert the SUBSTANCE of the illustrative disclosure, not just its
+    // presence - a regression that replaced this with misleading text
+    // (e.g. claiming real attention weights) must fail this test.
+    expect(body.note).toContain("Simulated");
+    expect(body.note).toMatch(/do not expose real attention weights/i);
   });
 
   it("POST /api/advanced/multimodal-demo returns 422 for a non-vision model", async () => {

@@ -146,6 +146,14 @@ export function QueryPlayground({ collection, onRunComplete, initialStrategy }: 
             <Input id="rag-topk" type="number" min={1} value={topK} onChange={(e) => setTopK(Number(e.target.value))} />
           </div>
         </div>
+        {strategy === "parent-doc" && (
+          <p className="rounded-md border border-amber-400 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200">
+            Simplified parent-document retrieval: this expands each matched chunk by stitching in its immediate
+            SIBLING chunks (previous/next by index within the same document), not a true separate parent/child
+            ingestion hierarchy. It approximates the real technique's benefit (precise match + more
+            surrounding context) without a dedicated parent-chunk store.
+          </p>
+        )}
         <div className="flex gap-2">
           <Button onClick={sse.start} disabled={sse.status === "connecting" || sse.status === "streaming"}>
             Run query (Ctrl/Cmd+Enter)

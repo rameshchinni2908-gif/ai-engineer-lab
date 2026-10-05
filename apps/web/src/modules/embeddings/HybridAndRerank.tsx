@@ -16,8 +16,12 @@ const DEMO_DOCS = [
   { id: "d5", text: "Quarterly revenue grew twelve percent year over year across all regions." },
 ];
 
+export interface HybridAndRerankProps {
+  onRunComplete?: (runId: string) => void;
+}
+
 /** M4: hybrid BM25+vector search (fused via RRF) and reranking before/after - legible side-by-side rankings. */
-export function HybridAndRerank(): JSX.Element {
+export function HybridAndRerank({ onRunComplete }: HybridAndRerankProps): JSX.Element {
   const storeProviderId = useProviderModelStore((s) => s.providerId);
   const storeModel = useProviderModelStore((s) => s.model);
   const [providerId, setProviderId] = React.useState(storeProviderId);
@@ -49,10 +53,11 @@ export function HybridAndRerank(): JSX.Element {
     setError(null);
     try {
       await ensureSeeded();
-      const { results, debug: dbg } = await embeddingsApi.hybridSearch(DEMO_COLLECTION, query, topK, providerId, model);
+      const { results, debug: dbg, runId } = await embeddingsApi.hybridSearch(DEMO_COLLECTION, query, topK, providerId, model);
       setFused(results);
       setDebug(dbg.stages);
       setRerankResult(null);
+      onRunComplete?.(runId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Hybrid search failed");
     }

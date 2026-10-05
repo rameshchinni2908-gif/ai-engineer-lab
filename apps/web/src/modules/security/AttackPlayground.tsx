@@ -32,6 +32,22 @@ export interface AttackPlaygroundProps {
 
 const ACTION_VARIANT = { block: "destructive", redact: "warning", flag: "secondary", allow: "outline" } as const;
 
+/** Local starting point so the playground is immediately usable even if the `GET /guardrails/config` fetch is slow/unavailable - mirrors the backend's own undefended default (everything off, every tool allowed). */
+const FALLBACK_CONFIG: GuardrailConfig = {
+  inputValidation: false,
+  piiRedaction: false,
+  injectionClassifier: false,
+  instructionHierarchy: false,
+  delimiterHardening: false,
+  outputModeration: false,
+  schemaEnforcement: false,
+  toolAllowList: ["send_email", "read_file", "execute_code", "web_search"],
+  leastPrivilege: false,
+  sandbox: false,
+  rateLimit: false,
+  approvalGates: false,
+};
+
 function FindingRow({ finding }: { finding: GuardrailFinding }): JSX.Element {
   return (
     <li className="flex flex-wrap items-center gap-2 text-xs">
@@ -58,13 +74,21 @@ export function AttackPlayground({ onRunComplete, presetAttackId }: AttackPlaygr
     if (presetAttackId) setAttackId(presetAttackId);
   }, [presetAttackId]);
 
-  const [config, setConfig] = React.useState<GuardrailConfig | null>(null);
+  // Starts usable immediately with a local fallback (matching the backend's
+  // own undefended default) rather than blocking the whole playground on
+  // one query - if `GET /guardrails/config` is slow, offline, or errors,
+  // the user can still run the headline attack -> defend -> re-run flow.
+  const [config, setConfig] = React.useState<GuardrailConfig>(FALLBACK_CONFIG);
+  const serverConfigAppliedRef = React.useRef(false);
   React.useEffect(() => {
-    if (configQuery.data && config === null) setConfig(configQuery.data);
-  }, [configQuery.data, config]);
+    if (configQuery.data && !serverConfigAppliedRef.current) {
+      serverConfigAppliedRef.current = true;
+      setConfig(configQuery.data);
+    }
+  }, [configQuery.data]);
 
-  const sse = useSse("/api/guardrails/attack", { attackId, configOverride: config ?? undefined }, { autoStart: false });
-  useRunShortcut(() => config && sse.start());
+  const sse = useSse("/api/guardrails/attack", { attackId, configOverride: config }, { autoStart: false });
+  useRunShortcut(() => sse.start());
 
   const notifiedRef = React.useRef(new Set<string>());
   React.useEffect(() => {
@@ -86,10 +110,6 @@ export function AttackPlayground({ onRunComplete, presetAttackId }: AttackPlaygr
   const blockingFindings = report?.findings.filter((f) => f.action === "block") ?? [];
   const selectedAttack = attacksQuery.data?.attacks.find((a) => a.id === attackId);
 
-  if (configQuery.isLoading || !config) {
-    return <p className="text-sm text-muted-foreground">Loading guardrail config...</p>;
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -103,6 +123,15 @@ export function AttackPlayground({ onRunComplete, presetAttackId }: AttackPlaygr
             might leak is a clearly-fake placeholder value, never a real credential.
           </AlertDescription>
         </Alert>
+
+        <p className="rounded-md border border-amber-400 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200">
+          Simulated, for intuition only - the bot&apos;s response below is a deterministic
+          SCRIPTED string (<code>buildUndefendedOutput</code>), not a live LLM call to any
+          provider, including a real one. This is intentional: it makes which guardrail layer
+          catches what 100% reproducible for teaching, but it means you are NOT watching a real
+          model get jailbroken - you&apos;re watching a scripted teaching harness whose scripted
+          reply is deliberately unsafe until a guardrail layer blocks/redacts it.
+        </p>
 
         <div>
           <Label htmlFor="attack-select">Attack</Label>

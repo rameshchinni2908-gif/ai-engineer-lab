@@ -20,6 +20,33 @@ describe("embeddings routes", () => {
     closeDb();
   });
 
+  it("POST /api/embeddings/embed records a Run (contracts §2.3: embed() is an LLMProvider call) that GET /api/runs/:id can fetch", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/embeddings/embed",
+      payload: { texts: ["a run must exist for this call"], providerId: "mock", model: "mock-small" },
+    });
+    expect(res.statusCode).toBe(200);
+    const { runId } = res.json();
+    expect(typeof runId).toBe("string");
+
+    const runRes = await app.inject({ method: "GET", url: `/api/runs/${runId}` });
+    expect(runRes.statusCode).toBe(200);
+    const run = runRes.json();
+    expect(run.moduleId).toBe("embeddings");
+    expect(run.feature).toBe("embed");
+    expect(run.status).toBe("complete");
+    expect(run.usage.inputTokens).toBeGreaterThan(0);
+
+    const explainRes = await app.inject({
+      method: "POST",
+      url: "/api/explain-run",
+      payload: { runId },
+    });
+    expect(explainRes.statusCode).toBe(200);
+    expect(explainRes.json().factors.length).toBeGreaterThan(0);
+  });
+
   it("POST /api/embeddings/embed returns deterministic mock embeddings with a matching dim", async () => {
     const res = await app.inject({
       method: "POST",

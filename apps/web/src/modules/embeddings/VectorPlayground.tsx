@@ -23,8 +23,12 @@ import { embeddingsApi } from "./api";
 
 const EMBED_DIM = 64; // MockProvider's deterministic embedding dimension.
 
+export interface VectorPlaygroundProps {
+  onRunComplete?: (runId: string) => void;
+}
+
 /** M4: vector playground - create/list/delete collections, upsert, metadata-filtered search, delete points, count. */
-export function VectorPlayground(): JSX.Element {
+export function VectorPlayground({ onRunComplete }: VectorPlaygroundProps): JSX.Element {
   const storeProviderId = useProviderModelStore((s) => s.providerId);
   const storeModel = useProviderModelStore((s) => s.model);
   const [providerId, setProviderId] = React.useState(storeProviderId);
@@ -85,7 +89,8 @@ export function VectorPlayground(): JSX.Element {
         const [id, text, metaRaw] = line.split("|").map((p) => p.trim());
         return { id: id!, text: text ?? "", metadata: metaRaw ? (JSON.parse(metaRaw) as Record<string, unknown>) : {} };
       });
-      const { embeddings } = await embeddingsApi.embed(parsed.map((p) => p.text), providerId, model);
+      const { embeddings, runId } = await embeddingsApi.embed(parsed.map((p) => p.text), providerId, model);
+      onRunComplete?.(runId);
       await embeddingsApi.upsert(
         activeCollection,
         parsed.map((p, i) => ({ id: p.id, vector: embeddings[i]!, metadata: { ...p.metadata, text: p.text } })),
@@ -101,7 +106,8 @@ export function VectorPlayground(): JSX.Element {
     if (!activeCollection) return;
     setError(null);
     try {
-      const { embeddings } = await embeddingsApi.embed([searchQuery], providerId, model);
+      const { embeddings, runId } = await embeddingsApi.embed([searchQuery], providerId, model);
+      onRunComplete?.(runId);
       const filter = searchFilter.trim() ? (JSON.parse(searchFilter) as Record<string, unknown>) : undefined;
       const { hits } = await embeddingsApi.search(activeCollection, embeddings[0]!, { topK, filter });
       setSearchHits(hits);

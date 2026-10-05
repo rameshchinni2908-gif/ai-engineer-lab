@@ -1,9 +1,9 @@
 import type { ProviderId, RetrievalDebug, RetrievalResult, RetrievalSource } from "@ail/shared";
-import { getProvider } from "../../providers/registry.js";
 import { withSpan } from "../runs/index.js";
+import { embedTexts } from "../embeddings/embed.js";
 import { getVectorStore } from "../../stores/vector/registry.js";
 import { isScannable } from "../../stores/vector/types.js";
-import { internalError, unprocessableError } from "../../middleware/errors.js";
+import { internalError } from "../../middleware/errors.js";
 import { bm25Search } from "./bm25.js";
 import { reciprocalRankFusion } from "./rrf.js";
 
@@ -20,6 +20,8 @@ export interface HybridSearchArgs {
 export interface HybridSearchResult {
   results: RetrievalResult[];
   debug: RetrievalDebug;
+  /** The `Run` id recorded for this search's query-embedding call (contracts.md §2.3) - wire to `activeRunId` for a real "Why this happened". */
+  runId: string;
 }
 
 /**
@@ -33,7 +35,7 @@ export async function hybridSearch(args: HybridSearchArgs): Promise<HybridSearch
     "vector.hybrid_search",
     "retrieval",
     { collection: args.collection, query: args.query, topK: args.topK },
-    async () => {
+    async ({ traceId: hybridTraceId }) => {
       const store = await getVectorStore();
       if (!isScannable(store)) {
         throw internalError("The active vector store does not support enumeration needed for hybrid search");
@@ -47,11 +49,20 @@ export async function hybridSearch(args: HybridSearchArgs): Promise<HybridSearch
       const bm25TimingMs = Date.now() - bm25Start;
 
       const vectorStart = Date.now();
-      const provider = getProvider(args.providerId);
-      if (!provider.embed) {
-        throw unprocessableError(`Provider "${args.providerId}" does not support embeddings`);
-      }
-      const [queryVector] = await provider.embed([args.query], args.model);
+      // Through `embedTexts` (never `getProvider(...).embed()` directly) so
+      // this call records a Run per contracts.md §2.3, same as every other
+      // `LLMProvider` call in the app.
+      const {
+        embeddings: [queryVector],
+        run: embedRun,
+      } = await embedTexts({
+        texts: [args.query],
+        providerId: args.providerId,
+        model: args.model,
+        moduleId: "embeddings",
+        feature: "hybrid-search-query",
+        traceId: args.traceId ?? hybridTraceId,
+      });
       const vectorHits = await store.search(args.collection, queryVector!, { topK: Math.max(args.topK * 2, args.topK) });
       const vectorTimingMs = Date.now() - vectorStart;
 
@@ -99,7 +110,7 @@ export async function hybridSearch(args: HybridSearchArgs): Promise<HybridSearch
         totalTimingMs: Date.now() - totalStart,
       };
 
-      return { results: fusedStage, debug };
+      return { results: fusedStage, debug, runId: embedRun.id };
     },
     { traceId: args.traceId },
   );

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { ATTACK_CATALOG } from "./attacks.js";
+import { ATTACK_CATALOG, ATTACK_PAYLOADS } from "./attacks.js";
 import { DEFAULT_GUARDRAIL_CONFIG, FULLY_DEFENDED_CONFIG } from "./config.js";
 import { checkDelimiterHardening, checkInjectionClassifier, checkInputValidation, resetRateLimitState } from "./layers.js";
 import { runAttackPipeline } from "./pipeline.js";
@@ -72,11 +72,23 @@ describe("runAttackPipeline - the headline attack -> defend -> re-run flow", () 
     expect(defended.attackSucceeded).toBe(false);
   });
 
-  it("every attack in the catalog has a working payload and resolves cleanly undefended", () => {
+  it("every attack in the catalog that SHOULD succeed undefended actually does (not just 'runs without throwing')", () => {
+    // Every attack in this catalog is designed to leak the secret, exfiltrate
+    // via markdown image, or abuse a tool - so with every layer off and the
+    // tool allow-list fully open, attackSucceeded must be true for ALL of
+    // them. A weaker assertion (e.g. "report is defined") would still pass
+    // even if every attack silently failed to succeed undefended, which is
+    // exactly the regression this test exists to catch.
     for (const attack of ATTACK_CATALOG) {
+      const payload = ATTACK_PAYLOADS[attack.id];
+      expect(payload).toBeDefined();
+      const shouldSucceedUndefended = Boolean(
+        payload!.leaksSecret || payload!.producesMarkdownImageExfil || payload!.attemptedTool,
+      );
+      expect(shouldSucceedUndefended).toBe(true); // sanity check on the catalog itself
+
       const result = runAttackPipeline(attack.id, DEFAULT_GUARDRAIL_CONFIG);
-      expect(result.report).toBeDefined();
-      expect(typeof result.attackSucceeded).toBe("boolean");
+      expect(result.attackSucceeded).toBe(true);
     }
   });
 

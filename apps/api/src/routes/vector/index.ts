@@ -116,8 +116,11 @@ const vectorRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/hybrid-search", async (req) => {
     const body = parseBody(HybridSearchBodySchema, req);
-    const { results, debug } = await hybridSearch(body);
-    return { results, debug };
+    // `runId` is additive on top of the contract's `{ results, debug }`
+    // shape - the embedding call inside `hybridSearch` now records a Run
+    // (contracts.md §2.3), and the frontend wires this id to `activeRunId`.
+    const { results, debug, runId } = await hybridSearch(body);
+    return { results, debug, runId };
   });
 
   app.post("/rerank", async (req) => {

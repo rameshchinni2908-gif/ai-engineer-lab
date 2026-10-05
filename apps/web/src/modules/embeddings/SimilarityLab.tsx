@@ -26,8 +26,12 @@ function magnitude(v: number[]): number {
   return Math.sqrt(v.reduce((s, x) => s + x * x, 0));
 }
 
+export interface SimilarityLabProps {
+  onRunComplete?: (runId: string) => void;
+}
+
 /** M4: similarity metrics demo - cosine vs dot vs euclidean on the SAME vectors, showing where rankings diverge. */
-export function SimilarityLab(): JSX.Element {
+export function SimilarityLab({ onRunComplete }: SimilarityLabProps): JSX.Element {
   const storeProviderId = useProviderModelStore((s) => s.providerId);
   const storeModel = useProviderModelStore((s) => s.model);
   const [providerId, setProviderId] = React.useState(storeProviderId);
@@ -42,7 +46,8 @@ export function SimilarityLab(): JSX.Element {
     if (candidates.length === 0) return;
     setLoading(true);
     try {
-      const { embeddings } = await embeddingsApi.embed([query, ...candidates], providerId, model);
+      const { embeddings, runId } = await embeddingsApi.embed([query, ...candidates], providerId, model);
+      onRunComplete?.(runId);
       const queryVec = embeddings[0]!;
       const candidateVecs = embeddings.slice(1);
       const results: Row[] = [];
@@ -59,7 +64,7 @@ export function SimilarityLab(): JSX.Element {
     } finally {
       setLoading(false);
     }
-  }, [query, candidatesRaw, providerId, model]);
+  }, [query, candidatesRaw, providerId, model, onRunComplete]);
 
   const rankings: Record<Metric, Row[]> = {
     cosine: rows ? [...rows].sort((a, b) => b.scores.cosine - a.scores.cosine) : [],

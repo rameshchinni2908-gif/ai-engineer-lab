@@ -107,6 +107,12 @@ describe("vector routes", () => {
     expect(body.debug.stages.map((s: { stage: string }) => s.stage).sort()).toEqual(["bm25", "fusion", "vector"]);
     expect(body.results.length).toBeGreaterThan(0);
 
+    // The query-embedding call inside hybridSearch records a Run (contracts §2.3).
+    expect(typeof body.runId).toBe("string");
+    const runRes = await app.inject({ method: "GET", url: `/api/runs/${body.runId}` });
+    expect(runRes.statusCode).toBe(200);
+    expect(runRes.json().feature).toBe("hybrid-search-query");
+
     await app.inject({ method: "DELETE", url: "/api/vector/collections/hybrid-route-test" });
   });
 
