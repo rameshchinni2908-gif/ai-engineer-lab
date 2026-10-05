@@ -14,7 +14,7 @@
     "build": "pnpm --filter=@ail/shared build && pnpm --filter=@ail/api build && pnpm --filter=@ail/web build",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
-    "test": "pnpm -r test",
+    "test": "pnpm -r --workspace-concurrency=1 test",
     "test:e2e": "echo \"[test:e2e] placeholder - Playwright smoke tests land in Wave 3\" && exit 0"
   },
   "pnpm": {

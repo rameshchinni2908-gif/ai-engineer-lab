@@ -163,9 +163,20 @@ describe("platform routes", () => {
     expect(res.json().code).toBe("VALIDATION_ERROR");
   });
 
-  it("a module route folder that does not exist yet is skipped, not fatal (fundamentals 404s cleanly)", async () => {
-    const res = await app.inject({ method: "POST", url: "/api/fundamentals/sample", payload: {} });
+  it("a module route folder that does not exist is skipped, not fatal", async () => {
+    // The "not fatal" property is that buildApp() in beforeAll resolved at all:
+    // registerModuleRoutes walks a fixed list of 13 folders and must skip any
+    // that is absent rather than reject. Asserting a *specific* module 404s is
+    // not durable (Wave 2 implements them one by one), so assert an unroutable
+    // path under the registry's own namespace instead.
+    expect(app.hasRoute({ method: "GET", url: "/api/health" })).toBe(true);
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/not-a-module/definitely-not-a-route",
+      payload: {},
+    });
     expect(res.statusCode).toBe(404);
+    expect(res.json().code).toBe("NOT_FOUND");
   });
 });
 

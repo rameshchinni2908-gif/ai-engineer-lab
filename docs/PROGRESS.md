@@ -166,7 +166,60 @@ exporting `MODULE_CONTENT: Record<ModuleId, ModuleContent>` + `GLOSSARY: Glossar
   environment. Only pure functions unit-tested. Mock mode is fully exercised. Must be stated in the
   final acceptance report.
 
-## Wave 2 — Module vertical slices (PARALLEL, 5 agents)
+## Wave 2 — Module vertical slices (PARALLEL, 5 agents) — IN PROGRESS
+
+**Status as of 2026-10-05:** all 5 agents launched in parallel, all 5 killed mid-work by session
+rate limits (twice), all 5 resumed with precise "what landed / what remains" briefs.
+Backends largely done; **frontends were the big gap** (only M1 had a page at resume time).
+
+### Orchestrator-fixed cross-agent integration bug (do not reintroduce)
+20 tests were failing with `404` because five module folders **double-prefixed** their route
+paths: `/api/embeddings/embeddings/embed`, `/api/evals/evals/datasets`, `/api/agents/agents/run`,
+`/api/vector/vector/...`, `/api/mcp/mcp/...`. The registry injects `/api/<prefix>`, so plugin
+paths MUST be bare and relative (`app.post("/embed")` → `/api/embeddings/embed`). Six folders got
+it right, five did not — i.e. **contracts §9 was ambiguous**, not five independent mistakes.
+Diagnosed via Fastify's own `printRoutes()` rather than by reading code. Stripping the duplicate
+segment fixed 18 of the 20 failures immediately.
+- [ ] **TODO for Wave 3 `architect`: disambiguate contracts §9** — state explicitly that a module
+      route plugin declares paths RELATIVE to the prefix the registry injects, with an example.
+      This is the single highest-value contract clarification outstanding.
+
+### Orchestrator-fixed obsolete Wave-1 tests (not regressions)
+Two tests asserted "no modules exist yet", a premise Wave 2 invalidates by design:
+- `apps/api/src/routes/platform.test.ts` — asserted `/api/fundamentals/sample` 404s. Rewritten to
+  assert the registry tolerates an absent folder without claiming a specific module 404s.
+- `apps/web/src/app/router.test.tsx` — asserted the placeholder for all 11 ids. Rewritten to derive
+  the unbuilt set from the SAME `import.meta.glob` the router uses, so it stays correct as pages
+  land one at a time, plus a guard against the assertion going vacuous.
+
+### Test count trajectory
+Wave 1 end: 127. After the prefix fix + obsolete-test rewrites: **571 (1 failing)**.
+The single failure is `apps/api/src/services/evals/cli.e2e.test.ts` — `eval-security-engineer`'s
+CLI e2e reusing a persistent `test-cli-e2e.db` across runs so `eval_cases.id` /
+`eval_suite_results.dataset_id` collide. It had self-diagnosed this before being killed; it is
+now its first priority as the only thing blocking the Wave 2 gate.
+
+### Per-agent state at resume (verified on disk by orchestrator, not from agent reports)
+
+| Agent | Backend | Frontend | Notes |
+|---|---|---|---|
+| `llm-modules` M1–M3 | routes+services done, tests pass | M1 page only (7 files) | M2 + M3 pages remained |
+| `retrieval-engineer` M4–M5 | M4 done (embeddings 14, vector 9, stores 11); **M5 RAG not started** | none | RAG backend + both pages + RAG integration test remained |
+| `agent-engineer` M6 | services/agents 34 files, routes+mcp done, sandbox tests passing | none (empty dir) | whole M6 page + remaining tool tests remained |
+| `eval-security-engineer` M7–M8 | M7 done (30 files); **M8 guardrails not started** | none | CLI fix + guardrails backend + both pages remained |
+| `platform-engineer` M9–M11 | all three done (production 14, advanced 11, checklist 5) | none | all three pages remained |
+
+### Verification I committed to doing personally (not accepting on report)
+- [ ] `agent-engineer`'s code sandbox: genuinely no host FS and no network, with tests proving both;
+      `http_fetch` SSRF/private-IP blocking
+- [ ] `eval-security-engineer`'s attack→defend→re-run: one test showing the SAME attack succeeding
+      undefended and blocked defended (literal CLAUDE.md acceptance criterion)
+- [ ] `platform-engineer`'s cost levers: whether each "measured saving" is really measured from two
+      real runs or simulated
+- [ ] `StreamingRegion` actually used in every streaming playground (it is a convention, not an
+      enforced guarantee, since `ModuleShell` deliberately does not auto-wrap)
+
+### Original per-module feature checklists (unchanged, still the definition of done)
 
 ### `llm-modules` — M1–M3
 - [ ] **M1 LLM Fundamentals**: tokenizer visualizer, context-window meter + truncation strategies,
