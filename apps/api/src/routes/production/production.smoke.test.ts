@@ -107,8 +107,12 @@ describe("production/advanced/checklist routes are registered and reachable", ()
     expect(body.correct["production-q1"]).toBe(true);
   });
 
-  it("every route echoes x-request-id", async () => {
-    const res = await app.inject({ method: "GET", url: "/api/production/latency-lab/presets" });
-    expect(res.headers["x-request-id"]).toBeDefined();
+  it("every route echoes the caller-supplied x-request-id verbatim", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/production/latency-lab/presets",
+      headers: { "x-request-id": "req_production_smoke_fixed_456" },
+    });
+    expect(res.headers["x-request-id"]).toBe("req_production_smoke_fixed_456");
   });
 });

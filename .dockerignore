@@ -1,0 +1,29 @@
+# Keeps the Docker build context small AND, critically, prevents the host's
+# own node_modules (built for the host OS/arch, with pnpm symlinks pointing
+# at host-absolute paths like D:/.../node_modules/.pnpm/...) from being
+# COPY'd into an image and shadowing the node_modules pnpm installs correctly
+# INSIDE each build stage for the container's own OS/arch. Without this, a
+# `COPY apps/api apps/api` (etc.) after `pnpm install` silently overwrites a
+# perfectly good Linux node_modules with a broken Windows/macOS one.
+node_modules
+**/node_modules
+dist
+**/dist
+build
+**/build
+.git
+.github
+coverage
+**/coverage
+playwright-report
+test-results
+data
+**/data
+*.db
+*.db-journal
+.env
+.env.local
+.turbo
+*.tsbuildinfo
+.vscode
+.claude

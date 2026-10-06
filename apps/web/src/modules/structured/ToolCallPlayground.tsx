@@ -8,8 +8,17 @@ import { useSse } from "@/hooks/useSse";
 import { useRunShortcut } from "@/hooks/useKeyboardShortcuts";
 import { useProviderModelStore } from "@/stores/provider-model";
 
+export type ToolChoice = "auto" | "required" | "none";
+
+export interface ToolCallPlaygroundAppliedParams {
+  question?: string;
+  toolChoice?: ToolChoice;
+}
+
 export interface ToolCallPlaygroundProps {
   onRunComplete?: (runId: string) => void;
+  /** Applied from a "Try this" preset. `!== undefined`, never truthiness. */
+  appliedParams?: ToolCallPlaygroundAppliedParams;
 }
 
 const SAMPLE_QUESTIONS = [
@@ -18,16 +27,20 @@ const SAMPLE_QUESTIONS = [
   "Reverse the text 'engineering', then tell me the result.",
 ];
 
-type ToolChoice = "auto" | "required" | "none";
-
 /** M3 tool-calling playground: sandboxed mock tools, full message trace (user -> assistant tool_use -> tool_result -> final). */
-export function ToolCallPlayground({ onRunComplete }: ToolCallPlaygroundProps): JSX.Element {
+export function ToolCallPlayground({ onRunComplete, appliedParams }: ToolCallPlaygroundProps): JSX.Element {
   const storeProviderId = useProviderModelStore((s) => s.providerId);
   const storeModel = useProviderModelStore((s) => s.model);
   const [providerId, setProviderId] = React.useState(storeProviderId);
   const [model, setModel] = React.useState(storeModel);
   const [question, setQuestion] = React.useState(SAMPLE_QUESTIONS[0]!);
   const [toolChoice, setToolChoice] = React.useState<ToolChoice>("auto");
+
+  React.useEffect(() => {
+    if (!appliedParams) return;
+    if (appliedParams.question !== undefined) setQuestion(appliedParams.question);
+    if (appliedParams.toolChoice !== undefined) setToolChoice(appliedParams.toolChoice);
+  }, [appliedParams]);
 
   const { status, runs, error, start } = useSse(
     "/api/structured/tool-call",

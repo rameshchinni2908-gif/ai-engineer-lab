@@ -4,6 +4,7 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Label }
 import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { EmptyState } from "@/components/EmptyState";
 import { embeddingsApi } from "./api";
+import type { EmbeddingsPresetParams } from "./presetTypes";
 
 const EMBED_DIM = 64;
 const CORPUS_SIZE = 60;
@@ -29,7 +30,11 @@ function syntheticVector(seed: number): number[] {
  * genuinely-different latency/recall numbers that simulation produces, but
  * the mechanism itself is a teaching approximation, not a real ANN index.
  */
-export function IndexTradeoffs(): JSX.Element {
+export interface IndexTradeoffsProps {
+  appliedParams?: EmbeddingsPresetParams;
+}
+
+export function IndexTradeoffs({ appliedParams }: IndexTradeoffsProps): JSX.Element {
   const [m, setM] = React.useState(16);
   const [efConstruct, setEfConstruct] = React.useState(100);
   const [efSearch, setEfSearch] = React.useState(50);
@@ -38,6 +43,12 @@ export function IndexTradeoffs(): JSX.Element {
   const [running, setRunning] = React.useState(false);
   const [results, setResults] = React.useState<RunResult[] | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!appliedParams) return;
+    if (appliedParams.efSearch !== undefined) setEfSearch(appliedParams.efSearch);
+    if (appliedParams.nprobe !== undefined) setNprobe(appliedParams.nprobe);
+  }, [appliedParams]);
 
   const run = React.useCallback(async () => {
     setRunning(true);

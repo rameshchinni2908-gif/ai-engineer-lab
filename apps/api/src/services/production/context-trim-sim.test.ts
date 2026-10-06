@@ -85,14 +85,23 @@ describe("runContextTrimSim: measured token/cost reduction", () => {
   });
 
   it("costUsd is computed from the model's catalog rate applied to measured token counts, not invented", async () => {
+    // Deliberately a NON-zero-rate catalog model (claude-sonnet-5: $3/MTok
+    // input). `providerId` stays "mock" because this strategy never calls a
+    // provider (cost comes purely from the pure `estimateCostUsd` formula
+    // applied to `req.model`'s catalog rate), so this stays zero-key-safe.
+    // A $0-rate model here would make `toBe(0)` indistinguishable from a
+    // dropped/broken multiplication.
     const messages: Message[] = [msg("user", "hello there, a medium length message for cost math")];
     const result = await runContextTrimSim({
       messages,
       providerId: "mock",
-      model: "mock-small",
+      model: "claude-sonnet-5",
       strategy: "truncate-oldest",
     });
-    // mock-small's rate is $0/MTok, so cost is honestly 0 even though tokens are real.
-    expect(result.untrimmed.costUsd).toBe(0);
+    const expectedInputTokens = result.untrimmed.inputTokens;
+    expect(expectedInputTokens).toBeGreaterThan(0);
+    const expectedCostUsd = (expectedInputTokens / 1_000_000) * 3; // claude-sonnet-5 inputCostPerMTok
+    expect(result.untrimmed.costUsd).toBeCloseTo(expectedCostUsd, 6);
+    expect(result.untrimmed.costUsd).toBeGreaterThan(0);
   });
 });

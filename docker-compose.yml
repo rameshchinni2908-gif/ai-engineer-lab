@@ -1,6 +1,17 @@
+# `docker compose up` runs the whole app in Mock mode with zero API keys -
+# see README.md. Qdrant is NOT started by default: VECTOR_STORE defaults to
+# `memory` (the zero-setup InMemoryStore) and the app never requires Qdrant
+# to function. Qdrant sits behind the `qdrant` compose profile; opt in with:
+#
+#   docker compose --profile qdrant up -d
+#   # then set VECTOR_STORE=qdrant (e.g. in your .env) and `docker compose up -d api` again
+#
+# so a registry outage or offline environment can never prevent `api` (or
+# the rest of the app) from starting.
 services:
   qdrant:
     image: qdrant/qdrant:latest
+    profiles: ["qdrant"]
     ports:
       - "6333:6333"
       - "6334:6334"
@@ -29,21 +40,37 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - DATABASE_PATH=/app/data/lab.db
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      # Must match the browser origin the web container is actually served
+      # from (host:hostPort, see the `web` service's ports below), not the
+      # container-internal port - the browser calls the API via its own
+      # proxied /api path, but CORS is checked against the page's origin.
+      - WEB_ORIGIN=${WEB_ORIGIN:-http://localhost:8080}
     volumes:
       - api_data:/app/data
-    depends_on:
-      - qdrant
-    # TODO(wave-3 architect): add healthcheck once /health is wired to real readiness checks.
+    healthcheck:
+      # node:22-bookworm-slim has no curl; Node's built-in fetch is always
+      # available, so this needs no extra package.
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8787/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
     ports:
-      - "5173:80"
+      # Host port 5173 is commonly occupied (e.g. Docker Desktop's own
+      # wslrelay on Windows, or a concurrent `pnpm dev`), so the web
+      # container is mapped to a different host port by default. Override
+      # with WEB_HOST_PORT if 8080 is also taken.
+      - "${WEB_HOST_PORT:-8080}:80"
     depends_on:
-      - api
-    # TODO(wave-3 architect): confirm nginx.conf API proxy path matches apps/api routes.
+      api:
+        condition: service_healthy
+    # NOTE: if you override WEB_HOST_PORT, also set WEB_ORIGIN above to
+    # match, or CORS will reject the browser's requests.
 
 volumes:
   qdrant_data:

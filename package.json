@@ -15,7 +15,8 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm -r --workspace-concurrency=1 test",
-    "test:e2e": "echo \"[test:e2e] placeholder - Playwright smoke tests land in Wave 3\" && exit 0"
+    "test:e2e": "pnpm --filter @ail/web test:e2e",
+    "seed": "node seed/load.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

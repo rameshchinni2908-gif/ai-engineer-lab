@@ -1,4 +1,4 @@
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -53,5 +53,36 @@ describe("structured module page (smoke)", () => {
     renderModule("/m/structured/playground");
     expect(await screen.findByText(/Three modes compared/i, {}, { timeout: 20000 })).toBeInTheDocument();
     expect(await screen.findByText(/Schema editor/i, {}, { timeout: 20000 })).toBeInTheDocument();
+    cleanup();
+  });
+
+  it("clicking the json-mode-vs-schema preset changes the mode-comparison prompt textarea's value, not just activePresetId", async () => {
+    renderModule("/m/structured/playground");
+    await screen.findByText(/Three modes compared/i, {}, { timeout: 20000 });
+
+    const promptTextareaBefore = (await screen.findByLabelText(
+      /Prompt \(same schema for all three modes\)/i,
+      {},
+      { timeout: 20000 },
+    )) as HTMLTextAreaElement;
+    expect(promptTextareaBefore.value).not.toContain("RAG vs fine-tuning");
+
+    const presetHeading = await screen.findByText(
+      /JSON mode vs full schema-constrained generation/i,
+      {},
+      { timeout: 20000 },
+    );
+    const presetCard = presetHeading.closest(".rounded-lg") as HTMLElement;
+    fireEvent.click(within(presetCard).getByRole("button", { name: /try this/i }));
+
+    // The ModeComparison prompt textarea must now contain the preset's prompt
+    // text, proving the preset's params were actually applied to the control -
+    // not merely that the preset card became active.
+    const promptTextareaAfter = (await screen.findByLabelText(
+      /Prompt \(same schema for all three modes\)/i,
+      {},
+      { timeout: 20000 },
+    )) as HTMLTextAreaElement;
+    expect(promptTextareaAfter.value).toContain("RAG vs fine-tuning");
   });
 });

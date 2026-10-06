@@ -90,6 +90,33 @@ Throw the matching `*Error(message, details?)` helper from your route/service
 - the central error handler turns it into the `ApiErrorSchema` envelope with
 the correct HTTP status automatically. Never build that envelope yourself.
 
+## Logging / PII redaction (`src/plugins/logger.ts`, `src/plugins/log-sanitize.ts`)
+
+Policy is **deny-by-default**, not a hand-picked deny-list: every string
+value logged anywhere is redacted to `"[redacted]"` UNLESS its key is on a
+small allow-list of genuinely safe, non-user-content fields - `providerId`,
+`model`, `moduleId`, `feature`, `strategy`, `runtime`, `metricId`, `status`,
+`driver`, `mode`, `owaspId`, `severity`, `action`, `layer`, `category`,
+`kind`, `toolChoice`, plus any key that is `id`/`ids` or ends in `Id`
+(`runId`, `documentId`, `chunkId`, `parentRunId`, ... - opaque identifiers,
+never enumerated one-by-one). Numbers and booleans are always safe (they
+can't carry a prompt). This is enforced three ways so it can't be bypassed
+by a new field name: a `req` serializer, a `body` serializer, and a
+`hooks.logMethod` that sanitizes the merge object of **every** log call
+site-wide (catches `log.info(req.body, "...")` spreads too, not just
+`{ body: ... }`).
+
+**Tradeoff - `code` is NOT on the safe list**, even though
+`middleware/error-handler.ts` logs `{ code: err.code }` for debugging: M3's
+sandbox/tool-call routes use the same key name for free-text source code,
+and that ambiguity isn't worth the risk. Debug logs' `code` field will show
+`"[redacted]"`; correlate a log line to its `ApiErrorSchema` response via
+`requestId` instead (always safe, `Id`-suffixed). If you add a new route and
+want one of its fields visible in logs, it must be a genuinely opaque,
+non-free-text value - add it to `SAFE_STRING_KEYS` in `log-sanitize.ts`
+(backend-core-owned; ask if you need a new safe field) rather than relying
+on it being logged by accident.
+
 ## explainRun (`src/services/explain/`)
 
 ```ts

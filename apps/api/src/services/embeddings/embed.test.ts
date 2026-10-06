@@ -5,7 +5,7 @@ process.env.DATABASE_PATH = join(process.cwd(), "data", "test-embed-service.db")
 
 const { embedTexts } = await import("./embed.js");
 const { closeDb } = await import("../../db/index.js");
-const { getRun } = await import("../runs/index.js");
+const { getRun, listRuns } = await import("../runs/index.js");
 
 afterAll(() => closeDb());
 
@@ -30,10 +30,21 @@ describe("embedTexts", () => {
     expect(fetched?.id).toBe(run.id);
   });
 
-  it("throws (and records an error Run) for a provider that doesn't support embed", async () => {
+  it("throws, and records an error Run that can be queried back, for a provider that doesn't support embed", async () => {
+    const feature = "embed-unsupported-provider-test";
     await expect(
-      embedTexts({ texts: ["x"], providerId: "anthropic", model: "claude-opus-5", moduleId: "embeddings", feature: "embed" }),
+      embedTexts({ texts: ["x"], providerId: "anthropic", model: "claude-opus-5", moduleId: "embeddings", feature }),
     ).rejects.toThrow();
+
+    // The earlier assertion only proves the promise rejected - it says
+    // nothing about whether the claimed "error Run" was actually persisted.
+    // Query it back by the unique feature tag used only in this test.
+    const { items } = await listRuns({ moduleId: "embeddings", feature });
+    expect(items).toHaveLength(1);
+    expect(items[0]?.status).toBe("error");
+    expect(items[0]?.error).toBeTruthy();
+    const fetched = await getRun(items[0]!.id);
+    expect(fetched?.status).toBe("error");
   });
 
   it("is deterministic given the same input (MockProvider.embed contract)", async () => {

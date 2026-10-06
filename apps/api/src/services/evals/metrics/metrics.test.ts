@@ -79,7 +79,19 @@ describe("llm_judge", () => {
     expect(prompt).toContain("2+2?");
   });
   it("uses the documented default rubric when none is overridden", () => {
-    expect(DEFAULT_JUDGE_RUBRIC.length).toBeGreaterThan(10);
+    // A bare length check (`.length > 10`) would pass for ANY non-trivial
+    // string, including a regression that replaced the rubric with
+    // unrelated placeholder text. Assert the actual substantive content:
+    // the documented 0-10 scoring scale, the correctness/completeness
+    // criteria, and the required JSON response shape.
+    expect(DEFAULT_JUDGE_RUBRIC).toContain("0 to 10");
+    expect(DEFAULT_JUDGE_RUBRIC).toMatch(/correct/i);
+    expect(DEFAULT_JUDGE_RUBRIC).toMatch(/complete/i);
+    expect(DEFAULT_JUDGE_RUBRIC).toContain('"score"');
+    expect(DEFAULT_JUDGE_RUBRIC).toContain('"rationale"');
+    // And confirm it actually flows into the built prompt verbatim.
+    const prompt = buildJudgePrompt({ rubric: DEFAULT_JUDGE_RUBRIC, input: "2+2?", output: "4" });
+    expect(prompt).toContain(DEFAULT_JUDGE_RUBRIC);
   });
   it("parses a well-formed JSON judge response", () => {
     const verdict = parseJudgeResponse('{"score": 8, "rationale": "mostly correct"}');

@@ -160,10 +160,26 @@ describe("MockProvider embed", () => {
 });
 
 describe("MockProvider cost math", () => {
-  it("uses MODEL_CATALOG rates via estimateCost", () => {
-    const cost = provider.estimateCost({ inputTokens: 1_000_000, outputTokens: 0, totalTokens: 1_000_000 }, "mock-small");
-    expect(cost.inputCostUsd).toBe(0); // mock-small is a zero-cost catalog entry
+  // Deliberately uses a NON-zero-rate catalog model (claude-sonnet-5:
+  // $3/MTok in, $15/MTok out). estimateCost() is pure arithmetic over
+  // MODEL_CATALOG rates regardless of which provider a model's catalog
+  // entry names, so this exercises the real multiplication without making
+  // any network call. A $0-rate model here would make `toBe(0)`
+  // indistinguishable from a dropped/broken multiplication.
+  it("uses MODEL_CATALOG rates via estimateCost: exact input/output cost = tokens x rate / 1e6", () => {
+    const usage = { inputTokens: 2_000_000, outputTokens: 500_000, totalTokens: 2_500_000 };
+    const cost = provider.estimateCost(usage, "claude-sonnet-5");
+    expect(cost.inputCostUsd).toBe(6); // 2,000,000 / 1e6 * $3
+    expect(cost.outputCostUsd).toBe(7.5); // 500,000 / 1e6 * $15
+    expect(cost.totalCostUsd).toBe(13.5);
     expect(cost.totalCostUsd).toBe(cost.inputCostUsd + cost.outputCostUsd);
+  });
+
+  it("falls back to mock-small's ($0) rate for an unknown model id, not NaN/undefined", () => {
+    const cost = provider.estimateCost({ inputTokens: 1000, outputTokens: 1000, totalTokens: 2000 }, "not-a-real-model");
+    expect(cost.inputCostUsd).toBe(0);
+    expect(cost.outputCostUsd).toBe(0);
+    expect(cost.totalCostUsd).toBe(0);
   });
 });
 

@@ -9,11 +9,19 @@ import { useSse } from "@/hooks/useSse";
 import { useRunShortcut } from "@/hooks/useKeyboardShortcuts";
 import { useProviderModelStore } from "@/stores/provider-model";
 
-export interface TechniqueDemosProps {
-  onRunComplete?: (runId: string) => void;
+export interface TechniqueDemosAppliedParams {
+  technique?: Technique;
+  input?: string;
+  compareBaseline?: boolean;
 }
 
-type Technique = "zero-shot" | "few-shot" | "cot" | "self-consistency" | "role" | "xml-delimiters" | "prefill" | "chaining";
+export interface TechniqueDemosProps {
+  onRunComplete?: (runId: string) => void;
+  /** Applied from a "Try this" preset - see fundamentals/SamplingLab.tsx's `appliedParams` pattern. Every field check is `!== undefined`, never truthiness, since `compareBaseline: false` is a meaningful value. */
+  appliedParams?: TechniqueDemosAppliedParams;
+}
+
+export type Technique = "zero-shot" | "few-shot" | "cot" | "self-consistency" | "role" | "xml-delimiters" | "prefill" | "chaining";
 
 const TECHNIQUES: { id: Technique; label: string; glossaryId: string }[] = [
   { id: "zero-shot", label: "Zero-shot", glossaryId: "zero-shot-prompting" },
@@ -37,7 +45,7 @@ function isVoteStage(e: SseEvent): e is SseEvent & { type: "stage"; stage: "self
 }
 
 /** M2 technique demos: zero/few-shot, CoT, self-consistency (vote distribution), role, XML delimiters, prefill, chaining. */
-export function TechniqueDemos({ onRunComplete }: TechniqueDemosProps): JSX.Element {
+export function TechniqueDemos({ onRunComplete, appliedParams }: TechniqueDemosProps): JSX.Element {
   const storeProviderId = useProviderModelStore((s) => s.providerId);
   const storeModel = useProviderModelStore((s) => s.model);
   const [providerId, setProviderId] = React.useState(storeProviderId);
@@ -45,6 +53,13 @@ export function TechniqueDemos({ onRunComplete }: TechniqueDemosProps): JSX.Elem
   const [technique, setTechnique] = React.useState<Technique>("cot");
   const [input, setInput] = React.useState("If a train travels 60 miles in 1.5 hours, what is its average speed?");
   const [compareBaseline, setCompareBaseline] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!appliedParams) return;
+    if (appliedParams.technique !== undefined) setTechnique(appliedParams.technique);
+    if (appliedParams.input !== undefined) setInput(appliedParams.input);
+    if (appliedParams.compareBaseline !== undefined) setCompareBaseline(appliedParams.compareBaseline);
+  }, [appliedParams]);
 
   const params: GenerationParams = { temperature: 0.7, maxTokens: 120 };
 

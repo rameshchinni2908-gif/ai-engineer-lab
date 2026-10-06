@@ -79,13 +79,15 @@ export function AgentPlayground({ onRunComplete, appliedParams }: AgentPlaygroun
 
   React.useEffect(() => {
     if (!appliedParams) return;
-    if (appliedParams.runtime) setRuntime(appliedParams.runtime);
-    if (appliedParams.goal) setGoal(appliedParams.goal);
-    if (appliedParams.toolAllowList) setToolAllowList(appliedParams.toolAllowList);
+    // `!== undefined`, not truthiness: a preset is entitled to set a falsy value
+    // (goal: "", maxSteps: 0) and have it actually land, not get silently dropped.
+    if (appliedParams.runtime !== undefined) setRuntime(appliedParams.runtime);
+    if (appliedParams.goal !== undefined) setGoal(appliedParams.goal);
+    if (appliedParams.toolAllowList !== undefined) setToolAllowList(appliedParams.toolAllowList);
     if (appliedParams.requireApprovalForDangerousTools !== undefined) {
       setRequireApproval(appliedParams.requireApprovalForDangerousTools);
     }
-    if (appliedParams.maxSteps) setMaxSteps(appliedParams.maxSteps);
+    if (appliedParams.maxSteps !== undefined) setMaxSteps(appliedParams.maxSteps);
     if (appliedParams.budgetUsd !== undefined) setBudgetUsd(appliedParams.budgetUsd);
   }, [appliedParams]);
 

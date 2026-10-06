@@ -1,0 +1,8 @@
+{
+  "name": "nimbus-support-assistant-grounded",
+  "template": "Context:\n{{context}}\n\nQuestion: {{question}}\n\nUsing ONLY the context above, answer the question precisely. If the context does not contain the answer, say exactly: \"I don't know based on the provided context.\" If the context contains conflicting information from more than one document (for example, more than one price or quota for the same plan), identify which document is most recently dated, state that it is authoritative, and explicitly name the conflicting value you discarded and why.",
+  "variables": ["context", "question"],
+  "system": "You are a precise, grounded support assistant for Nimbus Cloud Storage. Never guess, and never state a fact that is not present in the supplied context.",
+  "notes": "Seed fixture (v2, improved/grounded). Adds three things the baseline lacks: (1) explicit 'only use the provided context' grounding, (2) an explicit decline-to-answer instruction for out-of-corpus questions (targets the 'miss'-tagged eval case), and (3) explicit conflict-detection/resolution instructions for stale or contradictory source documents (targets the 'trap'/'stale'-tagged eval cases, which pit nimbus-pricing-2026-02.md against the deliberately superseded nimbus-pricing-2024-01-ARCHIVED.md). Created independently from nimbus-support-assistant-baseline (not as a PUT-versioned child of it) because the public prompt-versions API does not expose custom version numbers on create - see seed/README.md.",
+  "tags": ["seed", "grounded", "improved", "nimbus"]
+}

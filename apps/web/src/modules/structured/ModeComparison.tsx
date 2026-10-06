@@ -7,8 +7,14 @@ import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { useSse } from "@/hooks/useSse";
 import { useProviderModelStore } from "@/stores/provider-model";
 
+export interface ModeComparisonAppliedParams {
+  prompt?: string;
+}
+
 export interface ModeComparisonProps {
   onRunComplete?: (runId: string) => void;
+  /** Applied from a "Try this" preset. `!== undefined`, never truthiness. */
+  appliedParams?: ModeComparisonAppliedParams;
 }
 
 type Mode = "json_mode" | "schema_constrained" | "forced_tool";
@@ -71,12 +77,16 @@ function useModeTrials(
 }
 
 /** M3: free-text JSON vs JSON mode vs forced-tool, compared on the same schema - validity rate, tokens, cost. */
-export function ModeComparison({ onRunComplete }: ModeComparisonProps): JSX.Element {
+export function ModeComparison({ onRunComplete, appliedParams }: ModeComparisonProps): JSX.Element {
   const storeProviderId = useProviderModelStore((s) => s.providerId);
   const storeModel = useProviderModelStore((s) => s.model);
   const [providerId, setProviderId] = React.useState(storeProviderId);
   const [model, setModel] = React.useState(storeModel);
   const [prompt, setPrompt] = React.useState("Describe the concept of embeddings as structured JSON.");
+
+  React.useEffect(() => {
+    if (appliedParams?.prompt !== undefined) setPrompt(appliedParams.prompt);
+  }, [appliedParams]);
 
   const jsonMode = useModeTrials("json_mode", providerId, model, prompt, onRunComplete);
   const schemaConstrained = useModeTrials("schema_constrained", providerId, model, prompt, onRunComplete);

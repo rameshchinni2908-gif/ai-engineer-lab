@@ -6,6 +6,7 @@ import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { EmptyState } from "@/components/EmptyState";
 import { useProviderModelStore } from "@/stores/provider-model";
 import { embeddingsApi } from "./api";
+import type { EmbeddingsPresetParams } from "./presetTypes";
 
 const DEMO_COLLECTION = "hybrid-rerank-demo";
 const DEMO_DOCS = [
@@ -18,10 +19,11 @@ const DEMO_DOCS = [
 
 export interface HybridAndRerankProps {
   onRunComplete?: (runId: string) => void;
+  appliedParams?: EmbeddingsPresetParams;
 }
 
 /** M4: hybrid BM25+vector search (fused via RRF) and reranking before/after - legible side-by-side rankings. */
-export function HybridAndRerank({ onRunComplete }: HybridAndRerankProps): JSX.Element {
+export function HybridAndRerank({ onRunComplete, appliedParams }: HybridAndRerankProps): JSX.Element {
   const storeProviderId = useProviderModelStore((s) => s.providerId);
   const storeModel = useProviderModelStore((s) => s.model);
   const [providerId, setProviderId] = React.useState(storeProviderId);
@@ -29,6 +31,12 @@ export function HybridAndRerank({ onRunComplete }: HybridAndRerankProps): JSX.El
   const [query, setQuery] = React.useState("SKU-48213");
   const [topK, setTopK] = React.useState(3);
   const [seeded, setSeeded] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!appliedParams) return;
+    if (appliedParams.hybridQuery !== undefined) setQuery(appliedParams.hybridQuery);
+    if (appliedParams.hybridTopK !== undefined) setTopK(appliedParams.hybridTopK);
+  }, [appliedParams]);
   const [debug, setDebug] = React.useState<{ stage: string; candidates: RetrievalResult[] }[] | null>(null);
   const [fused, setFused] = React.useState<RetrievalResult[] | null>(null);
   const [rerankResult, setRerankResult] = React.useState<{ before: RetrievalResult[]; after: RetrievalResult[] } | null>(null);

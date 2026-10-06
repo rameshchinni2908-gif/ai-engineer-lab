@@ -1,0 +1,8 @@
+{
+  "name": "nimbus-support-assistant-baseline",
+  "template": "Context:\n{{context}}\n\nQuestion: {{question}}\n\nAnswer the question.",
+  "variables": ["context", "question"],
+  "system": "You are a helpful support assistant for Nimbus Cloud Storage.",
+  "notes": "Seed fixture (v1, baseline). Minimal instructions: no explicit grounding requirement, no instruction to say 'I don't know', no instruction to handle conflicting/stale source documents. Pair with nimbus-support-assistant-grounded in an eval run against seed/evals/nimbus-support-qa.dataset.json to see a measurable difference, especially on the 'trap'/'stale'-tagged cases where the corpus contains a superseded pricing document alongside the current one.",
+  "tags": ["seed", "baseline", "nimbus"]
+}

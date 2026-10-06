@@ -31,8 +31,16 @@ describe("routes: /api/mcp", () => {
     const res = await app.inject({ method: "GET", url: "/api/mcp/servers/docs-server/tools" });
     expect(res.statusCode).toBe(200);
     const { tools } = res.json();
-    expect(tools.some((t: { name: string }) => t.name === "search_docs")).toBe(true);
-    expect(tools[0].inputSchema).toBeDefined();
+    const searchDocs = tools.find((t: { name: string }) => t.name === "search_docs");
+    expect(searchDocs).toBeDefined();
+    // Assert the actual JSON Schema SHAPE (not just presence) - a regression
+    // that replaced inputSchema with `{}` or a string would still pass
+    // `toBeDefined()`.
+    expect(searchDocs.inputSchema).toEqual({
+      type: "object",
+      properties: { query: { type: "string" } },
+      required: ["query"],
+    });
   });
 
   it("GET /api/mcp/servers/:id/tools 404s for an unknown server", async () => {

@@ -4,6 +4,7 @@ import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { EmptyState } from "@/components/EmptyState";
 import type { FailureMode } from "./api";
 import { ragApi } from "./api";
+import type { RagPresetParams } from "./presetTypes";
 
 const MODES: { id: FailureMode; label: string; glossaryId?: string }[] = [
   { id: "miss", label: "Retrieval miss" },
@@ -15,31 +16,47 @@ const MODES: { id: FailureMode; label: string; glossaryId?: string }[] = [
 export interface FailureModeLabProps {
   collection: string;
   onRunComplete?: (runId: string) => void;
+  appliedParams?: RagPresetParams;
 }
 
 /** M5: failure-mode lab - deliberately reproduces each named failure, with a diagnosis tied to the real run and a re-runnable fix. */
-export function FailureModeLab({ collection, onRunComplete }: FailureModeLabProps): JSX.Element {
+export function FailureModeLab({ collection, onRunComplete, appliedParams }: FailureModeLabProps): JSX.Element {
   const [query, setQuery] = React.useState("What does the document say?");
   const [mode, setMode] = React.useState<FailureMode | null>(null);
   const [result, setResult] = React.useState<Awaited<ReturnType<typeof ragApi.failureModeDemo>> | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  async function trigger(m: FailureMode) {
-    setMode(m);
-    setLoading(true);
-    setError(null);
-    try {
-      const r = await ragApi.failureModeDemo(m, query, collection);
-      setResult(r);
-      onRunComplete?.(r.run.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failure-mode demo failed");
-      setResult(null);
-    } finally {
-      setLoading(false);
+  const trigger = React.useCallback(
+    async (m: FailureMode, queryOverride?: string) => {
+      const effectiveQuery = queryOverride ?? query;
+      setMode(m);
+      setLoading(true);
+      setError(null);
+      try {
+        const r = await ragApi.failureModeDemo(m, effectiveQuery, collection);
+        setResult(r);
+        onRunComplete?.(r.run.id);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failure-mode demo failed");
+        setResult(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [query, collection, onRunComplete],
+  );
+
+  // A preset that sets `failureMode` actually TRIGGERS the demo (not just a
+  // control value) - `!== undefined` checks throughout, never truthiness.
+  React.useEffect(() => {
+    if (!appliedParams) return;
+    if (appliedParams.query !== undefined) setQuery(appliedParams.query);
+    if (appliedParams.failureMode !== undefined) {
+      void trigger(appliedParams.failureMode, appliedParams.query);
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally re-runs only when a NEW preset is applied, not on every `trigger` identity change (which itself depends on `query`/`collection` and would otherwise re-fire this on every keystroke).
+  }, [appliedParams]);
 
   return (
     <Card>

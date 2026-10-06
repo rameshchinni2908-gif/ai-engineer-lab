@@ -1,4 +1,4 @@
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor, act } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -60,6 +60,35 @@ describe("security module page (smoke)", () => {
 
     // The run button that re-executes the (possibly now-defended) attack.
     expect(screen.getByRole("button", { name: /Run attack/i })).toBeInTheDocument();
+    cleanup();
+  });
+
+  it("clicking a preset changes an actual control's value, not just the active-preset highlight", async () => {
+    renderModule("/m/security/playground");
+    const switchEl = await screen.findByRole("switch", { name: /Input validation/i }, { timeout: 20000 });
+
+    // Manually turn the layer ON first, so the preset (which applies the
+    // fully-undefended config, i.e. this layer OFF) has something real to
+    // change - proving the preset's `config` actually reaches the toggle,
+    // not merely that `activePresetId` updated.
+    await act(async () => {
+      fireEvent.click(switchEl);
+    });
+    expect(switchEl).toHaveAttribute("aria-checked", "true");
+
+    // Preset order matches content.presets: index 0 = "security-attack-then-defend" (applies the undefended config).
+    const tryThisButtons = await screen.findAllByRole("button", { name: /Try this/i }, { timeout: 20000 });
+    await act(async () => {
+      fireEvent.click(tryThisButtons[0]!);
+    });
+
+    await waitFor(
+      () => {
+        expect(switchEl).toHaveAttribute("aria-checked", "false");
+      },
+      { timeout: 20000 },
+    );
+
     cleanup();
   });
 

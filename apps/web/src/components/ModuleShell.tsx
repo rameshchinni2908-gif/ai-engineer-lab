@@ -129,9 +129,10 @@ export function ModuleShell({
         </div>
 
         <div
+          data-testid="module-shell-row"
           className={cn(
-            "mt-3 flex min-h-0 flex-1 gap-4",
-            isWide ? "grid grid-cols-[minmax(0,320px)_1fr_minmax(0,360px)]" : "flex-col",
+            "mt-3 min-h-0 flex-1 gap-4",
+            isWide ? "grid grid-cols-[minmax(0,320px)_1fr_minmax(0,360px)]" : "flex flex-col",
           )}
         >
           {/* Learn pane: persistent collapsible column on wide screens; folds into the Learn tab on narrow screens. */}
@@ -160,8 +161,12 @@ export function ModuleShell({
             </aside>
           )}
 
-          {/* Center: tab content */}
-          <div className="min-h-0 min-w-0">
+          {/* Center: tab content. overflow-x-hidden is the hard guarantee that no
+              playground control (e.g. a long-labeled select/button a module forgets
+              to constrain) can ever paint past this track and over the right aside -
+              min-w-0 alone only stops *this* element from blowing out the grid track;
+              it does not clip a misbehaving descendant that's wider than the track. */}
+          <div data-testid="module-shell-center" className="min-h-0 min-w-0 overflow-x-hidden">
             <TabsContent value="learn" className="h-full">
               {isWide ? (
                 <EmptyState

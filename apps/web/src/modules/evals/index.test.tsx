@@ -1,4 +1,4 @@
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor, act } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -49,6 +49,29 @@ describe("evals module page (smoke)", () => {
     expect(
       await screen.findByRole("heading", { name: /Run an eval across prompt versions/i }, { timeout: 20000 }),
     ).toBeInTheDocument();
+    cleanup();
+  });
+
+  it("clicking a preset changes an actual control's value, not just the active-preset highlight", async () => {
+    renderModule("/m/evals/playground");
+    await screen.findByRole("heading", { name: /Dataset manager/i }, { timeout: 20000 });
+
+    // Exactly one variant row ("Prompt version id" input) before any preset is applied.
+    expect(screen.getAllByLabelText(/Prompt version id/i)).toHaveLength(1);
+
+    // Preset order matches content.presets: index 0 = "evals-two-prompt-versions", which applies variantCount: 2.
+    const tryThisButtons = await screen.findAllByRole("button", { name: /Try this/i }, { timeout: 20000 });
+    await act(async () => {
+      fireEvent.click(tryThisButtons[0]!);
+    });
+
+    await waitFor(
+      () => {
+        expect(screen.getAllByLabelText(/Prompt version id/i)).toHaveLength(2);
+      },
+      { timeout: 20000 },
+    );
+
     cleanup();
   });
 

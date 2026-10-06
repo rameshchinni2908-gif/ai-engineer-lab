@@ -7,10 +7,18 @@ import { StreamingRegion } from "@/components/StreamingRegion";
 import { useSse } from "@/hooks/useSse";
 import { useProviderModelStore } from "@/stores/provider-model";
 
+/** Preset-applicable params. A prompt-version id can't be meaningfully preset (it's whatever the user created in Prompt Engineering), so presets instead control what's actually observable here: which metrics are selected and how many variant rows exist. */
+export interface EvalRunnerParams {
+  metricIds?: MetricId[];
+  judgeRubric?: string;
+  variantCount?: number;
+}
+
 export interface EvalRunnerProps {
   datasetId: string | null;
   onRunComplete?: (runId: string) => void;
   onSuiteComplete?: (suiteResultId: string) => void;
+  appliedParams?: EvalRunnerParams;
 }
 
 const ALL_METRICS: MetricId[] = [
@@ -33,7 +41,7 @@ interface VariantRow extends EvalVariant {
 }
 
 /** M7 eval runner: prompt-version x model variants, metric selection, streamed progress, and a results matrix with regression highlighting. */
-export function EvalRunner({ datasetId, onRunComplete, onSuiteComplete }: EvalRunnerProps): JSX.Element {
+export function EvalRunner({ datasetId, onRunComplete, onSuiteComplete, appliedParams }: EvalRunnerProps): JSX.Element {
   const storeProviderId = useProviderModelStore((s) => s.providerId);
   const storeModel = useProviderModelStore((s) => s.model);
 
@@ -42,6 +50,30 @@ export function EvalRunner({ datasetId, onRunComplete, onSuiteComplete }: EvalRu
   ]);
   const [metricIds, setMetricIds] = React.useState<Set<MetricId>>(new Set(["exact_match", "latency", "cost"]));
   const [judgeRubric, setJudgeRubric] = React.useState("");
+
+  // `!== undefined` throughout, never truthiness - `variantCount: 0` or an
+  // empty `metricIds` array would be silently skipped by a truthy check.
+  React.useEffect(() => {
+    if (!appliedParams) return;
+    if (appliedParams.metricIds !== undefined) {
+      setMetricIds(new Set(appliedParams.metricIds));
+    }
+    if (appliedParams.judgeRubric !== undefined) {
+      setJudgeRubric(appliedParams.judgeRubric);
+    }
+    if (appliedParams.variantCount !== undefined) {
+      const count = Math.max(1, appliedParams.variantCount);
+      setVariants((prev) => {
+        if (count <= prev.length) return prev.slice(0, count);
+        const next = [...prev];
+        while (next.length < count) {
+          next.push({ key: `v${next.length}`, promptVersionId: "", providerId: storeProviderId, model: storeModel });
+        }
+        return next;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- storeProviderId/storeModel are only used to seed NEW rows when growing; re-running this effect on their change (rather than only on appliedParams) would re-apply a stale preset on every provider/model switch.
+  }, [appliedParams]);
 
   const sse = useSse(
     "/api/evals/run",

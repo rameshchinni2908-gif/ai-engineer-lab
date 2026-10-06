@@ -19,6 +19,7 @@ import {
 import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { ErrorState } from "@/components/EmptyState";
 import { embeddingsApi } from "./api";
+import type { EmbeddingsPresetParams } from "./presetTypes";
 
 const SAMPLE_TEXT = `# Onboarding Guide
 
@@ -46,8 +47,12 @@ const STRATEGIES: { id: ChunkStrategy; label: string }[] = [
 
 const PALETTE = ["#6366f1", "#22c55e", "#f59e0b", "#ec4899", "#06b6d4", "#a855f7", "#ef4444"];
 
+export interface ChunkingLabProps {
+  appliedParams?: EmbeddingsPresetParams;
+}
+
 /** M4: chunking lab - all five strategies with a visual boundary map + per-chunk size/overlap/token stats. */
-export function ChunkingLab(): JSX.Element {
+export function ChunkingLab({ appliedParams }: ChunkingLabProps): JSX.Element {
   const [text, setText] = React.useState(SAMPLE_TEXT);
   const [strategy, setStrategy] = React.useState<ChunkStrategy>("recursive");
   const [chunkSize, setChunkSize] = React.useState(20);
@@ -55,6 +60,14 @@ export function ChunkingLab(): JSX.Element {
   const [semanticThreshold, setSemanticThreshold] = React.useState(0.5);
   const [chunks, setChunks] = React.useState<Chunk[] | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+
+  // `!== undefined`, never truthiness: `chunkOverlap: 0` is a valid preset value.
+  React.useEffect(() => {
+    if (!appliedParams) return;
+    if (appliedParams.chunkStrategy !== undefined) setStrategy(appliedParams.chunkStrategy);
+    if (appliedParams.chunkSize !== undefined) setChunkSize(appliedParams.chunkSize);
+    if (appliedParams.chunkOverlap !== undefined) setChunkOverlap(appliedParams.chunkOverlap);
+  }, [appliedParams]);
 
   const run = React.useCallback(async () => {
     setError(null);

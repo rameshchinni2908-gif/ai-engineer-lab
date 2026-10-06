@@ -22,6 +22,7 @@ import { useSse } from "@/hooks/useSse";
 import { useRunShortcut } from "@/hooks/useKeyboardShortcuts";
 import { useProviderModelStore } from "@/stores/provider-model";
 import type { RagStrategy } from "./api";
+import type { RagPresetParams } from "./presetTypes";
 
 const STRATEGIES: { id: RagStrategy; label: string }[] = [
   { id: "basic", label: "Basic (vector only)" },
@@ -49,19 +50,27 @@ interface BaselineSnapshot {
 export interface QueryPlaygroundProps {
   collection: string;
   onRunComplete?: (runId: string) => void;
-  initialStrategy?: RagStrategy;
+  appliedParams?: RagPresetParams;
 }
 
 /** M5: retrieve + generate with citations, every stage inspectable via `stage` SSE events; strategies measurable against a basic baseline. */
-export function QueryPlayground({ collection, onRunComplete, initialStrategy }: QueryPlaygroundProps): JSX.Element {
+export function QueryPlayground({ collection, onRunComplete, appliedParams }: QueryPlaygroundProps): JSX.Element {
   const storeProviderId = useProviderModelStore((s) => s.providerId);
   const storeModel = useProviderModelStore((s) => s.model);
   const [providerId, setProviderId] = React.useState(storeProviderId);
   const [model, setModel] = React.useState(storeModel);
   const [query, setQuery] = React.useState("What does the document say?");
-  const [strategy, setStrategy] = React.useState<RagStrategy>(initialStrategy ?? "basic");
+  const [strategy, setStrategy] = React.useState<RagStrategy>("basic");
   const [topK, setTopK] = React.useState(4);
   const [baseline, setBaseline] = React.useState<BaselineSnapshot | null>(null);
+
+  // `!== undefined`, never truthiness: `topK: 0` would be a valid (if degenerate) preset value.
+  React.useEffect(() => {
+    if (!appliedParams) return;
+    if (appliedParams.strategy !== undefined) setStrategy(appliedParams.strategy);
+    if (appliedParams.topK !== undefined) setTopK(appliedParams.topK);
+    if (appliedParams.query !== undefined) setQuery(appliedParams.query);
+  }, [appliedParams]);
 
   const sse = useSse(
     "/api/rag/query",

@@ -1,10 +1,11 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { join } from "node:path";
 
 process.env.DATABASE_PATH = join(process.cwd(), "data", "test-cache-sim.db");
 
 const { closeDb } = await import("../../db/index.js");
 const { runCacheSim } = await import("./cache-sim.js");
+const { MockProvider } = await import("../../providers/mock.js");
 
 describe("cache-sim: prompt cache (exact match)", () => {
   afterAll(() => closeDb());
@@ -23,11 +24,13 @@ describe("cache-sim: prompt cache (exact match)", () => {
       cacheType: "prompt",
       requests: [{ prompt: "repeat me" }, { prompt: "repeat me" }],
     });
+    // Assert the call-count accounting directly rather than comparing
+    // wall-clock latency sums - wall-clock comparisons are flaky by
+    // construction on a loaded machine. withoutCache always makes one real
+    // call per request (2); withCache makes one real call per MISS only.
     expect(result.hits).toBe(1);
-    // withCache makes exactly 1 real call (the miss) vs. withoutCache's 2
-    // real calls - allow <= rather than strict < since mock latency can
-    // legitimately round to the same small number under fast test execution.
-    expect(result.withCache.totalLatencyMs).toBeLessThanOrEqual(result.withoutCache.totalLatencyMs);
+    expect(result.misses).toBe(1);
+    expect(Number.isFinite(result.latencySavingsPct)).toBe(true);
   });
 
   it("does NOT hit on a merely similar (not identical) prompt", async () => {
@@ -82,13 +85,38 @@ describe("cache-sim: semantic cache (embedding similarity threshold)", () => {
 });
 
 describe("cache-sim: measured savings", () => {
-  it("withCache cost never exceeds withoutCache cost", async () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("withCache/withoutCache cost are the EXACT sum of each call's real (measured) cost", async () => {
+    // mock-small is a $0/MTok catalog entry, so without stubbing a non-zero
+    // rate here, `toBeLessThanOrEqual` would pass even if the cost
+    // accumulation were completely broken (0 <= 0 always). Stub a
+    // distinguishable non-zero per-call cost so the sums can be checked
+    // exactly, derived from the measured hit/miss call counts.
+    const PER_CALL_COST = 0.02;
+    vi.spyOn(MockProvider.prototype, "estimateCost").mockReturnValue({
+      inputCostUsd: PER_CALL_COST,
+      outputCostUsd: 0,
+      totalCostUsd: PER_CALL_COST,
+      currency: "USD",
+    });
+
     const result = await runCacheSim({
       cacheType: "prompt",
       requests: [{ prompt: "x" }, { prompt: "x" }, { prompt: "x" }, { prompt: "y" }],
     });
-    expect(result.withCache.totalCostUsd).toBeLessThanOrEqual(result.withoutCache.totalCostUsd);
+
     expect(result.hits).toBe(2);
     expect(result.misses).toBe(2);
+    // withoutCache makes one real call per request (4 total).
+    expect(result.withoutCache.totalCostUsd).toBeCloseTo(4 * PER_CALL_COST, 6);
+    // withCache makes one real call per MISS only (2 total).
+    expect(result.withCache.totalCostUsd).toBeCloseTo(2 * PER_CALL_COST, 6);
+    expect(result.withCache.totalCostUsd).toBeLessThan(result.withoutCache.totalCostUsd);
+    const expectedSavingsPct =
+      ((4 * PER_CALL_COST - 2 * PER_CALL_COST) / (4 * PER_CALL_COST)) * 100;
+    expect(result.savingsPct).toBeCloseTo(expectedSavingsPct, 6);
   });
 });

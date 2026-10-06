@@ -22,6 +22,7 @@ import { EmptyState, ErrorState } from "@/components/EmptyState";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { useProviderModelStore } from "@/stores/provider-model";
 import { ragApi, readFileForUpload } from "./api";
+import type { RagPresetParams } from "./presetTypes";
 
 const STRATEGIES: { id: ChunkStrategy; label: string }[] = [
   { id: "fixed", label: "Fixed-size" },
@@ -34,10 +35,11 @@ const STRATEGIES: { id: ChunkStrategy; label: string }[] = [
 export interface UploadAndIngestProps {
   collection: string;
   onCollectionReady?: (collection: string) => void;
+  appliedParams?: RagPresetParams;
 }
 
 /** M5: upload (PDF/MD/TXT) -> parse -> chunk -> embed -> store, every stage inspectable. */
-export function UploadAndIngest({ collection, onCollectionReady }: UploadAndIngestProps): JSX.Element {
+export function UploadAndIngest({ collection, onCollectionReady, appliedParams }: UploadAndIngestProps): JSX.Element {
   const storeProviderId = useProviderModelStore((s) => s.providerId);
   const storeModel = useProviderModelStore((s) => s.model);
   const [providerId, setProviderId] = React.useState(storeProviderId);
@@ -53,6 +55,14 @@ export function UploadAndIngest({ collection, onCollectionReady }: UploadAndInge
   const [chunks, setChunks] = React.useState<Chunk[] | null>(null);
   const [embedded, setEmbedded] = React.useState(false);
   const [indexed, setIndexed] = React.useState(false);
+
+  // `!== undefined`, never truthiness: `chunkOverlap: 0` is a valid preset value.
+  React.useEffect(() => {
+    if (!appliedParams) return;
+    if (appliedParams.chunkStrategy !== undefined) setStrategy(appliedParams.chunkStrategy);
+    if (appliedParams.chunkSize !== undefined) setChunkSize(appliedParams.chunkSize);
+    if (appliedParams.chunkOverlap !== undefined) setChunkOverlap(appliedParams.chunkOverlap);
+  }, [appliedParams]);
   const [error, setError] = React.useState<string | null>(null);
 
   const docsQuery = useQuery({ queryKey: ["rag-documents"], queryFn: () => ragApi.listDocuments() });

@@ -20,9 +20,12 @@ export const SelectTrigger = React.forwardRef<
     )}
     {...props}
   >
-    {children}
+    {/* min-w-0 lets the (often long, e.g. preset/model names) selected-value text shrink
+        instead of forcing this flex row - and therefore its `w-full` ancestor track -
+        wider than its container; truncate keeps it from wrapping/blowing out. */}
+    <span className="min-w-0 flex-1 truncate text-left">{children}</span>
     <SelectPrimitive.Icon asChild>
-      <ChevronDown className="h-4 w-4 opacity-50" aria-hidden="true" />
+      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" aria-hidden="true" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ));

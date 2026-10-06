@@ -1,0 +1,132 @@
+{
+  "name": "Nimbus Support QA",
+  "description": "18 question/answer cases grounded in the seed/docs/ Nimbus Cloud Storage corpus. Covers overview, current pricing, a deliberate stale-pricing trap (nimbus-pricing-2024-01-ARCHIVED.md vs. nimbus-pricing-2026-02.md), security/compliance, retention policy, one deliberately out-of-corpus 'miss' case, and one 'which document wins' meta case. Designed to show a measurable difference between the two seed prompt versions (seed/prompts/) when run through the RAG + Evals modules: the baseline prompt tends to answer pricing-trap cases from whichever document retrieval happens to surface first, while the grounded prompt explicitly checks recency and flags the conflict.",
+  "cases": [
+    {
+      "id": "nimbus-001",
+      "input": { "question": "What is a vault in Nimbus?" },
+      "expected": "A top-level folder with its own sharing settings and retention policy.",
+      "tags": ["overview"],
+      "metadata": { "sourceDoc": "nimbus-overview.md" }
+    },
+    {
+      "id": "nimbus-002",
+      "input": { "question": "What are the three member roles in a Nimbus workspace?" },
+      "expected": "admin, editor, and viewer",
+      "tags": ["overview"],
+      "metadata": { "sourceDoc": "nimbus-overview.md" }
+    },
+    {
+      "id": "nimbus-003",
+      "input": { "question": "How much does the CURRENT Pro plan cost per user per month?" },
+      "expected": "$12 per user per month",
+      "tags": ["pricing", "current"],
+      "metadata": { "sourceDoc": "nimbus-pricing-2026-02.md" }
+    },
+    {
+      "id": "nimbus-004",
+      "input": { "question": "How much pooled storage does the current Pro plan include?" },
+      "expected": "500 GB pooled",
+      "tags": ["pricing", "current"],
+      "metadata": { "sourceDoc": "nimbus-pricing-2026-02.md" }
+    },
+    {
+      "id": "nimbus-005",
+      "input": { "question": "What was the Pro plan price in the older, superseded pricing document?" },
+      "expected": "$9 per user per month",
+      "tags": ["pricing", "trap", "stale"],
+      "metadata": { "sourceDoc": "nimbus-pricing-2024-01-ARCHIVED.md", "note": "Correct answer requires retrieving the ARCHIVED doc specifically, not the current one." }
+    },
+    {
+      "id": "nimbus-006",
+      "input": { "question": "The Pro plan price differs between two documents in this corpus: one says $9/user/month, another says $12/user/month. Which is correct right now, and why?" },
+      "expected": "$12/user/month is correct (from nimbus-pricing-2026-02.md); $9/user/month is from the superseded 2024 document and should not be used.",
+      "tags": ["pricing", "trap", "stale"],
+      "metadata": { "note": "Tests whether the system detects and resolves the conflict rather than picking either number arbitrarily." }
+    },
+    {
+      "id": "nimbus-007",
+      "input": { "question": "What happens when a Business plan workspace exceeds its storage quota?" },
+      "expected": "Uploads continue past quota and are billed at $0.02/GB/month overage; there is no hard upload block on Business.",
+      "tags": ["pricing", "current"],
+      "metadata": { "sourceDoc": "nimbus-pricing-2026-02.md" }
+    },
+    {
+      "id": "nimbus-008",
+      "input": { "question": "What discount applies to annual billing on the Pro plan?" },
+      "expected": "15%",
+      "tags": ["pricing", "current"],
+      "metadata": { "sourceDoc": "nimbus-pricing-2026-02.md" }
+    },
+    {
+      "id": "nimbus-009",
+      "input": { "question": "What encryption algorithm protects data at rest in Nimbus's object store?" },
+      "expected": "AES-256",
+      "tags": ["security"],
+      "metadata": { "sourceDoc": "nimbus-security-compliance.md" }
+    },
+    {
+      "id": "nimbus-010",
+      "input": { "question": "Is two-factor authentication mandatory for admin accounts in Nimbus?" },
+      "expected": "Yes, TOTP-based two-factor authentication is mandatory for any account with the admin role.",
+      "tags": ["security"],
+      "metadata": { "sourceDoc": "nimbus-security-compliance.md" }
+    },
+    {
+      "id": "nimbus-011",
+      "input": { "question": "Does Nimbus maintain a HIPAA Business Associate Agreement program?" },
+      "expected": "No.",
+      "tags": ["security"],
+      "metadata": { "sourceDoc": "nimbus-security-compliance.md" }
+    },
+    {
+      "id": "nimbus-012",
+      "input": { "question": "Within how many hours does Nimbus commit to notifying workspace admins of a confirmed data breach?" },
+      "expected": "72 hours",
+      "tags": ["security"],
+      "metadata": { "sourceDoc": "nimbus-security-compliance.md" }
+    },
+    {
+      "id": "nimbus-013",
+      "input": { "question": "How long are deleted files kept in trash before permanent deletion?" },
+      "expected": "30 days",
+      "tags": ["retention"],
+      "metadata": { "sourceDoc": "nimbus-data-retention-policy.md" }
+    },
+    {
+      "id": "nimbus-014",
+      "input": { "question": "How long are audit log entries retained?" },
+      "expected": "7 years",
+      "tags": ["retention"],
+      "metadata": { "sourceDoc": "nimbus-data-retention-policy.md" }
+    },
+    {
+      "id": "nimbus-015",
+      "input": { "question": "Can Business plan workspaces extend version history retention, and if so, to how long?" },
+      "expected": "Yes, Business plan workspaces may extend version history retention to 1 year.",
+      "tags": ["retention"],
+      "metadata": { "sourceDoc": "nimbus-data-retention-policy.md" }
+    },
+    {
+      "id": "nimbus-016",
+      "input": { "question": "What does placing a legal hold on a vault do?" },
+      "expected": "It suspends trash aging and version pruning for that vault until the hold is lifted.",
+      "tags": ["retention"],
+      "metadata": { "sourceDoc": "nimbus-data-retention-policy.md" }
+    },
+    {
+      "id": "nimbus-017",
+      "input": { "question": "What mobile operating systems does the Nimbus mobile app support?" },
+      "expected": "Not specified in the provided documents.",
+      "tags": ["miss", "out-of-corpus"],
+      "metadata": { "note": "Deliberately unanswerable from this corpus - exercises the RAG 'miss' failure mode. A good answer declines rather than inventing a platform list." }
+    },
+    {
+      "id": "nimbus-018",
+      "input": { "question": "When two pricing documents in this corpus disagree, which one should be treated as authoritative?" },
+      "expected": "The most recently dated document - currently nimbus-pricing-2026-02.md, which explicitly states it supersedes the 2024 document.",
+      "tags": ["pricing", "meta"],
+      "metadata": { "note": "Meta-question about the corpus's own stale-document convention, not just a fact lookup." }
+    }
+  ]
+}

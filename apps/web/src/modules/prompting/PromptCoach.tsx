@@ -6,13 +6,19 @@ import { coachPrompt, type CoachResponse } from "./api";
 
 export interface PromptCoachProps {
   onRunComplete?: (runId: string) => void;
+  /** Applied from a "Try this" preset - replaces the prompt textarea's content. `!== undefined`, never truthiness. */
+  appliedPrompt?: string;
 }
 
 const WEAK_PROMPT_EXAMPLE = "make this good";
 
 /** M2 bad -> better prompt coach: heuristic score + real LLM rewrite + word-level diff. */
-export function PromptCoach({ onRunComplete }: PromptCoachProps): JSX.Element {
+export function PromptCoach({ onRunComplete, appliedPrompt }: PromptCoachProps): JSX.Element {
   const [prompt, setPrompt] = React.useState(WEAK_PROMPT_EXAMPLE);
+
+  React.useEffect(() => {
+    if (appliedPrompt !== undefined) setPrompt(appliedPrompt);
+  }, [appliedPrompt]);
 
   const mutation = useMutation({
     mutationFn: () => coachPrompt(prompt),

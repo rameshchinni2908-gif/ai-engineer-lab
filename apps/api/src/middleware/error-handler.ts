@@ -23,8 +23,21 @@ export function registerErrorHandler(app: FastifyInstance): void {
     const requestId = String(req.id);
 
     if (err instanceof ApiHttpError) {
+      // SECURITY (sandbox BLOCKER, 2026-10-06, confirmed live): never pass
+      // `err.message` as pino's *message* argument - it can carry
+      // attacker-controlled text (e.g. Zod's `invalid_enum_value` message
+      // echoes the submitted value verbatim) and historically bypassed
+      // `sanitizeLogMergeObject`, which only ever sanitizes `inputArgs[0]`.
+      // Use a fixed literal for the message and put the detail in the
+      // merge object under `errorMessage` - a key that is NOT on
+      // `SERIALIZER_OWNED_TOP_LEVEL_KEYS`, so `sanitizeLogMergeObject`
+      // actually processes it (unlike `code`/`err`, which are intentionally
+      // skipped there). This is still defense-in-depth, not the only line
+      // of defense: `logger.ts`'s `hooks.logMethod` now also sanitizes any
+      // string message argument, and `serializers.err` sanitizes
+      // `err.message` before pino's own serializer renders it.
       if (err.statusCode >= 500) req.log.error({ err, requestId }, "request failed");
-      else req.log.warn({ code: err.code, requestId }, err.message);
+      else req.log.warn({ code: err.code, requestId, errorMessage: err.message }, "request failed");
       const body: ApiError = {
         code: err.code,
         message: err.message,

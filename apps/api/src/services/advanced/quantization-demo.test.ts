@@ -22,7 +22,16 @@ describe("computeQuantizationDemo", () => {
     expect(result.qualityNotes.length).toBeGreaterThan(0);
   });
 
-  it("falls back to a default parameter count for an unknown model id rather than throwing", () => {
-    expect(() => computeQuantizationDemo({ model: "some-unknown-model-id", precision: "fp16" })).not.toThrow();
+  it("falls back to a default parameter count (matching a known 8B-class model) for an unknown model id", () => {
+    // A bare `.not.toThrow()` would also pass for a broken fallback that
+    // silently returns NaN/undefined/0 - assert the actual output instead:
+    // the documented default (DEFAULT_PARAM_BILLIONS = 8 in the source)
+    // must produce the EXACT same result as a known 8B catalog model
+    // (llama3.1:8b), not just "some number".
+    const fallback = computeQuantizationDemo({ model: "some-unknown-model-id", precision: "fp16" });
+    const known8B = computeQuantizationDemo({ model: "llama3.1:8b", precision: "fp16" });
+    expect(fallback).toEqual(known8B);
+    expect(Number.isFinite(fallback.approxSizeMb)).toBe(true);
+    expect(fallback.approxSizeMb).toBeGreaterThan(0);
   });
 });

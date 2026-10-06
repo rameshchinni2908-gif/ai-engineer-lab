@@ -56,3 +56,22 @@ if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
     } as MediaQueryList;
   };
 }
+
+/**
+ * jsdom implements no layout, so it ships no `Element.prototype.scrollIntoView`
+ * at all - calling it throws "scrollIntoView is not a function" and, because the
+ * call happens inside a React event handler, the error surfaces as an uncaught
+ * exception that fails the whole test file rather than one assertion.
+ *
+ * M4's Embeddings page legitimately calls it: selecting a preset scrolls the
+ * user to the lab section that preset targets. That is real, desirable product
+ * behaviour, so the right fix is to teach the test environment about the method
+ * rather than to remove a feature for the benefit of the test runner.
+ *
+ * A no-op is the honest stub here: it records nothing and asserts nothing, and
+ * no test should ever claim to verify scrolling on the strength of it - jsdom
+ * cannot scroll. It exists purely so that calling the method is not fatal.
+ */
+if (typeof Element !== "undefined" && typeof Element.prototype.scrollIntoView !== "function") {
+  Element.prototype.scrollIntoView = function scrollIntoView(): void {};
+}

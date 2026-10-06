@@ -25,15 +25,21 @@ import { useRunShortcut } from "@/hooks/useKeyboardShortcuts";
 import { DefenseLayerToggles } from "./DefenseLayerToggles";
 import { getGuardrailConfig, listAttacks } from "./api";
 
+/** Params a preset (or any other caller) can apply. `config`, if present, is user/preset INTENT and always wins over whatever `GET /guardrails/config` returns - see the precedence rule on `userInteractedRef` below. */
+export interface AttackPlaygroundParams {
+  attackId?: string;
+  config?: GuardrailConfig;
+}
+
 export interface AttackPlaygroundProps {
   onRunComplete?: (runId: string) => void;
-  presetAttackId?: string;
+  appliedParams?: AttackPlaygroundParams;
 }
 
 const ACTION_VARIANT = { block: "destructive", redact: "warning", flag: "secondary", allow: "outline" } as const;
 
 /** Local starting point so the playground is immediately usable even if the `GET /guardrails/config` fetch is slow/unavailable - mirrors the backend's own undefended default (everything off, every tool allowed). */
-const FALLBACK_CONFIG: GuardrailConfig = {
+export const FALLBACK_CONFIG: GuardrailConfig = {
   inputValidation: false,
   piiRedaction: false,
   injectionClassifier: false,
@@ -65,27 +71,49 @@ function FindingRow({ finding }: { finding: GuardrailFinding }): JSX.Element {
  * and re-run the SAME attack to see it blocked - with the exact layer and
  * finding that stopped it called out explicitly.
  */
-export function AttackPlayground({ onRunComplete, presetAttackId }: AttackPlaygroundProps): JSX.Element {
+export function AttackPlayground({ onRunComplete, appliedParams }: AttackPlaygroundProps): JSX.Element {
   const attacksQuery = useQuery({ queryKey: ["guardrail-attacks"], queryFn: listAttacks });
   const configQuery = useQuery({ queryKey: ["guardrail-config"], queryFn: getGuardrailConfig });
 
-  const [attackId, setAttackId] = React.useState(presetAttackId ?? "direct-injection-reveal-secret");
-  React.useEffect(() => {
-    if (presetAttackId) setAttackId(presetAttackId);
-  }, [presetAttackId]);
+  const [attackId, setAttackId] = React.useState(appliedParams?.attackId ?? "direct-injection-reveal-secret");
 
-  // Starts usable immediately with a local fallback (matching the backend's
-  // own undefended default) rather than blocking the whole playground on
-  // one query - if `GET /guardrails/config` is slow, offline, or errors,
-  // the user can still run the headline attack -> defend -> re-run flow.
-  const [config, setConfig] = React.useState<GuardrailConfig>(FALLBACK_CONFIG);
-  const serverConfigAppliedRef = React.useRef(false);
+  /**
+   * State-precedence rule (the race this fixes): `userInteractedRef` flips
+   * to `true` the FIRST time the config is set by anything that represents
+   * explicit intent - the user toggling a layer by hand, OR a preset being
+   * applied (a preset click is user intent too, just expressed in one click
+   * instead of twelve). Once it's `true`, the `GET /guardrails/config`
+   * effect below is permanently inert for the rest of this component's
+   * life: a slow/late-arriving server response can only ever SEED the
+   * initial value, never overwrite something the user already chose. This
+   * ordering is explicit (one ref, one guard, checked in both places that
+   * write `config`) rather than incidental.
+   */
+  const userInteractedRef = React.useRef(Boolean(appliedParams?.config));
+  const [config, setConfig] = React.useState<GuardrailConfig>(appliedParams?.config ?? FALLBACK_CONFIG);
+
   React.useEffect(() => {
-    if (configQuery.data && !serverConfigAppliedRef.current) {
-      serverConfigAppliedRef.current = true;
+    if (configQuery.data && !userInteractedRef.current) {
       setConfig(configQuery.data);
     }
   }, [configQuery.data]);
+
+  // Presets re-apply on every distinct `appliedParams` object (not just
+  // mount), so clicking a preset again - or a different preset - always
+  // takes effect, and always wins over the server fetch from here on.
+  React.useEffect(() => {
+    if (!appliedParams) return;
+    if (appliedParams.attackId !== undefined) setAttackId(appliedParams.attackId);
+    if (appliedParams.config !== undefined) {
+      userInteractedRef.current = true;
+      setConfig(appliedParams.config);
+    }
+  }, [appliedParams]);
+
+  function handleConfigChange(next: GuardrailConfig): void {
+    userInteractedRef.current = true;
+    setConfig(next);
+  }
 
   const sse = useSse("/api/guardrails/attack", { attackId, configOverride: config }, { autoStart: false });
   useRunShortcut(() => sse.start());
@@ -156,7 +184,7 @@ export function AttackPlayground({ onRunComplete, presetAttackId }: AttackPlaygr
 
         <div>
           <h4 className="mb-2 text-sm font-semibold">Defense layers (toggle, then re-run the same attack)</h4>
-          <DefenseLayerToggles config={config} onChange={setConfig} />
+          <DefenseLayerToggles config={config} onChange={handleConfigChange} />
         </div>
 
         <Button onClick={() => sse.start()} disabled={sse.status === "connecting" || sse.status === "streaming"}>

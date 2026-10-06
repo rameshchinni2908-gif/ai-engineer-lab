@@ -43,15 +43,14 @@ export async function embedTexts(args: EmbedTextsArgs): Promise<EmbedTextsResult
     { providerId: args.providerId, model: args.model, textCount: args.texts.length },
     async ({ traceId }) => {
       const provider = getProvider(args.providerId);
-      if (!provider.embed) {
-        throw unprocessableError(`Provider "${args.providerId}" does not support embeddings`);
-      }
-
       const effectiveTraceId = args.traceId ?? traceId;
       const inputMessages: Message[] = args.texts.map((t) => ({ role: "user" as const, content: t }));
       const start = Date.now();
 
       try {
+        if (!provider.embed) {
+          throw unprocessableError(`Provider "${args.providerId}" does not support embeddings`);
+        }
         const embeddings = await provider.embed(args.texts, args.model);
         const latencyMs = Date.now() - start;
         const dim = embeddings[0]?.length ?? 0;

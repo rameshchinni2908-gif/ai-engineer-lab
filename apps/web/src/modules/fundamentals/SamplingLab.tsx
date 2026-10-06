@@ -20,8 +20,23 @@ import { useSse } from "@/hooks/useSse";
 import { useRunShortcut } from "@/hooks/useKeyboardShortcuts";
 import { useProviderModelStore } from "@/stores/provider-model";
 
+/** Params a `<PresetPicker>` selection can push into this lab. */
+export interface SamplingLabParams {
+  temperature?: number;
+  topP?: number;
+  topK?: number;
+  maxTokens?: number;
+  seed?: number;
+  presencePenalty?: number;
+  frequencyPenalty?: number;
+  n?: number;
+  prompt?: string;
+}
+
 export interface SamplingLabProps {
   onRunComplete?: (runId: string) => void;
+  /** Applied params from a `<PresetPicker>` selection; re-applied whenever a new preset is chosen. */
+  appliedParams?: SamplingLabParams;
 }
 
 interface LogprobPoint {
@@ -48,7 +63,7 @@ function lastLogprob(events: SseEvent[]): LogProb | undefined {
 }
 
 /** M1 sampling lab: the headline temperature/top_p/top_k/penalties/seed/N-samples playground. */
-export function SamplingLab({ onRunComplete }: SamplingLabProps): JSX.Element {
+export function SamplingLab({ onRunComplete, appliedParams }: SamplingLabProps): JSX.Element {
   const storeProviderId = useProviderModelStore((s) => s.providerId);
   const storeModel = useProviderModelStore((s) => s.model);
   const [providerId, setProviderId] = React.useState(storeProviderId);
@@ -63,6 +78,29 @@ export function SamplingLab({ onRunComplete }: SamplingLabProps): JSX.Element {
   const [presencePenalty, setPresencePenalty] = React.useState(0);
   const [frequencyPenalty, setFrequencyPenalty] = React.useState(0);
   const [n, setN] = React.useState(1);
+
+  /**
+   * Apply a preset's params to the controls. Every check is `!== undefined`, never
+   * truthiness: the headline "Temperature 0 vs 1.2" preset sets `temperature: 0`,
+   * and `if (appliedParams.temperature)` would silently skip exactly the preset
+   * that demonstrates this module's acceptance criterion.
+   */
+  React.useEffect(() => {
+    if (!appliedParams) return;
+    if (appliedParams.temperature !== undefined) setTemperature(appliedParams.temperature);
+    if (appliedParams.topP !== undefined) setTopP(appliedParams.topP);
+    if (appliedParams.topK !== undefined) setTopK(appliedParams.topK);
+    if (appliedParams.maxTokens !== undefined) setMaxTokens(appliedParams.maxTokens);
+    if (appliedParams.seed !== undefined) setSeed(appliedParams.seed);
+    if (appliedParams.presencePenalty !== undefined) {
+      setPresencePenalty(appliedParams.presencePenalty);
+    }
+    if (appliedParams.frequencyPenalty !== undefined) {
+      setFrequencyPenalty(appliedParams.frequencyPenalty);
+    }
+    if (appliedParams.n !== undefined) setN(appliedParams.n);
+    if (appliedParams.prompt !== undefined) setPrompt(appliedParams.prompt);
+  }, [appliedParams]);
 
   const params: GenerationParams = {
     temperature,

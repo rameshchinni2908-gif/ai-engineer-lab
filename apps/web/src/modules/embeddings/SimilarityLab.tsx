@@ -4,6 +4,7 @@ import { ProviderModelSelector } from "@/components/ProviderModelSelector";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { useProviderModelStore } from "@/stores/provider-model";
 import { embeddingsApi } from "./api";
+import type { EmbeddingsPresetParams } from "./presetTypes";
 
 const DEFAULT_QUERY = "a small kitten sleeping";
 const DEFAULT_CANDIDATES = [
@@ -28,10 +29,11 @@ function magnitude(v: number[]): number {
 
 export interface SimilarityLabProps {
   onRunComplete?: (runId: string) => void;
+  appliedParams?: EmbeddingsPresetParams;
 }
 
 /** M4: similarity metrics demo - cosine vs dot vs euclidean on the SAME vectors, showing where rankings diverge. */
-export function SimilarityLab({ onRunComplete }: SimilarityLabProps): JSX.Element {
+export function SimilarityLab({ onRunComplete, appliedParams }: SimilarityLabProps): JSX.Element {
   const storeProviderId = useProviderModelStore((s) => s.providerId);
   const storeModel = useProviderModelStore((s) => s.model);
   const [providerId, setProviderId] = React.useState(storeProviderId);
@@ -40,6 +42,12 @@ export function SimilarityLab({ onRunComplete }: SimilarityLabProps): JSX.Elemen
   const [candidatesRaw, setCandidatesRaw] = React.useState(DEFAULT_CANDIDATES.join("\n"));
   const [rows, setRows] = React.useState<Row[] | null>(null);
   const [loading, setLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!appliedParams) return;
+    if (appliedParams.simQuery !== undefined) setQuery(appliedParams.simQuery);
+    if (appliedParams.simCandidates !== undefined) setCandidatesRaw(appliedParams.simCandidates.join("\n"));
+  }, [appliedParams]);
 
   const run = React.useCallback(async () => {
     const candidates = candidatesRaw.split("\n").map((l) => l.trim()).filter(Boolean);

@@ -8,8 +8,16 @@ import { useSse } from "@/hooks/useSse";
 import { useRunShortcut } from "@/hooks/useKeyboardShortcuts";
 import { useProviderModelStore } from "@/stores/provider-model";
 
+export interface RepairLoopVizAppliedParams {
+  invalidJson?: string;
+  schemaText?: string;
+  maxAttempts?: number;
+}
+
 export interface RepairLoopVizProps {
   onRunComplete?: (runId: string) => void;
+  /** Applied from a "Try this" preset. `!== undefined`, never truthiness (maxAttempts could legitimately be set to a small number like 1). */
+  appliedParams?: RepairLoopVizAppliedParams;
 }
 
 const DEFAULT_INVALID_JSON = '{"topic": "embeddings", "summry": "typo'; // deliberately malformed + misspelled field
@@ -26,7 +34,7 @@ interface AttemptStageData {
 }
 
 /** M3 retry/repair loop timeline: every attempt, the validation errors fed back, and the (possibly still-invalid) result. */
-export function RepairLoopViz({ onRunComplete }: RepairLoopVizProps): JSX.Element {
+export function RepairLoopViz({ onRunComplete, appliedParams }: RepairLoopVizProps): JSX.Element {
   const storeProviderId = useProviderModelStore((s) => s.providerId);
   const storeModel = useProviderModelStore((s) => s.model);
   const [providerId, setProviderId] = React.useState(storeProviderId);
@@ -35,6 +43,13 @@ export function RepairLoopViz({ onRunComplete }: RepairLoopVizProps): JSX.Elemen
   const [schemaText, setSchemaText] = React.useState(DEFAULT_SCHEMA);
   const [maxAttempts, setMaxAttempts] = React.useState(3);
   const [schemaError, setSchemaError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!appliedParams) return;
+    if (appliedParams.invalidJson !== undefined) setInvalidJson(appliedParams.invalidJson);
+    if (appliedParams.schemaText !== undefined) setSchemaText(appliedParams.schemaText);
+    if (appliedParams.maxAttempts !== undefined) setMaxAttempts(appliedParams.maxAttempts);
+  }, [appliedParams]);
 
   const schema = React.useMemo(() => {
     try {

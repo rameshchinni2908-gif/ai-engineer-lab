@@ -54,24 +54,35 @@ describe("runRepairLoop (integration, mock provider)", () => {
 
   it("each repair attempt is persisted as its own Run, chained via parentRunId", async () => {
     const { writer, events } = fakeWriter();
-    const schema = { type: "object", properties: { topic: { type: "string" } }, required: ["topic"] };
+    // A schema requiring a field the mock's canned jsonMode output can NEVER
+    // produce ("nonexistent_field") guarantees every attempt is invalid, so
+    // with maxAttempts: 2 the loop deterministically runs exactly 2 full
+    // attempts every time - the chaining assertion below always executes
+    // instead of sitting in an `if (runCompletes.length > 1)` branch that
+    // the other test in this file (which converges on attempt 1) never takes.
+    const schema = {
+      type: "object",
+      properties: { nonexistent_field: { type: "string" } },
+      required: ["nonexistent_field"],
+    };
 
     await runRepairLoop({
       invalidJson: "{not valid json",
       schema,
       providerId: "mock",
       model: "mock-small",
-      maxAttempts: 3,
+      maxAttempts: 2,
       writer,
     });
 
     const runCompletes = events.filter((e) => e.type === "run_complete");
-    expect(runCompletes.length).toBeGreaterThan(0);
-    if (runCompletes.length > 1 && runCompletes[1]?.type === "run_complete") {
-      expect(runCompletes[1].run.parentRunId).toBe(
-        runCompletes[0]?.type === "run_complete" ? runCompletes[0].run.id : undefined,
-      );
+    expect(runCompletes).toHaveLength(2);
+    const [first, second] = runCompletes;
+    if (first?.type !== "run_complete" || second?.type !== "run_complete") {
+      throw new Error("expected both repair attempts to emit run_complete events");
     }
+    expect(second.run.parentRunId).toBe(first.run.id);
+    expect(first.run.parentRunId).toBeUndefined();
   });
 
   it("stops without any repair call when the input is already valid", async () => {
