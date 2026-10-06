@@ -45,8 +45,8 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ['"Inter Variable"', "system-ui", "sans-serif"],
-        mono: ['"JetBrains Mono Variable"', "ui-monospace", "monospace"],
+        sans: ['"Geist Variable"', "system-ui", "sans-serif"],
+        mono: ['"Geist Mono Variable"', "ui-monospace", "monospace"],
       },
       boxShadow: {
         xs: "var(--shadow-xs)",

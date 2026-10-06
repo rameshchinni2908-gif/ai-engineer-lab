@@ -72,10 +72,14 @@ export function AppShell(): JSX.Element {
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    // The app shell owns the viewport; the document itself never scrolls.
+    // `h-dvh` (with `h-screen` as a same-value fallback for browsers that
+    // don't support dvh) excludes the mobile URL bar from the height
+    // calculation so nothing is ever cut off beneath it.
+    <div className="flex h-screen h-dvh flex-col overflow-hidden">
       <SkipToContent />
 
-      <header className="flex items-center justify-between border-b border-border px-4 py-3">
+      <header className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -108,12 +112,21 @@ export function AppShell(): JSX.Element {
         </div>
       </header>
 
-      <div className="flex flex-1">
-        <nav aria-label="Modules" className="hidden w-64 shrink-0 border-r border-border p-3 md:block">
+      <div className="flex min-h-0 flex-1">
+        <nav
+          aria-label="Modules"
+          className="hidden w-64 shrink-0 overflow-y-auto border-r border-border p-3 md:block"
+        >
           <ModuleNavList />
         </nav>
 
-        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 p-4 focus:outline-none">
+        {/*
+         * Bounded, scrollable box per the contract with ModuleShell: on
+         * module pages ModuleShell renders `h-full min-h-0` in here and
+         * owns its own internal pane scrolling, so <main> itself does not
+         * overflow. Simple pages (e.g. home) scroll inside <main> normally.
+         */}
+        <main id="main-content" tabIndex={-1} className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 focus:outline-none">
           <Outlet />
         </main>
       </div>

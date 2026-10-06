@@ -88,8 +88,16 @@ export function ModuleShell({
     navigate(`/m/${moduleId}/${value}`);
   };
 
+  // Content of the Run Inspector + Why This Happened pane. Deliberately has no
+  // height/overflow classes of its own: whichever ancestor hosts it (the wide
+  // persistent aside below, or the mobile drawer's <DialogContent>) is the one
+  // scroll owner for this content. Nesting a second `overflow-y-auto` directly
+  // inside an already-scrolling aside produced two independent scroll boxes of
+  // identical size - functionally harmless here, but exactly the kind of
+  // "scroller inside a scroller" shape that causes wheel-chaining jank, so it
+  // is avoided on principle everywhere in this component.
   const rightPane = (
-    <div className="flex h-full flex-col gap-5 overflow-y-auto">
+    <div className="flex flex-col gap-5">
       <section aria-label="Run Inspector">
         <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Run Inspector</h2>
         <RunInspector runId={activeRunId} />
@@ -105,29 +113,45 @@ export function ModuleShell({
   );
 
   return (
-    <div className="flex h-full flex-col gap-4">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-        {description && <p className="mt-1 text-muted-foreground">{description}</p>}
-      </header>
+    // Root: fills whatever bounded box the app shell's <main> hands us
+    // (`h-full`) and is allowed to shrink below its content size
+    // (`min-h-0`) so the *inner* panes - not this component, not <main>,
+    // not the document - are the ones that scroll.
+    <div className="flex h-full min-h-0 flex-col">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex h-full min-h-0 flex-col">
+        {/* Title, description, and the tab strip stay put while panes scroll
+            beneath them - this whole block is `shrink-0`, never part of the
+            scrolling flow. */}
+        <div className="shrink-0">
+          <header>
+            <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+            {description && <p className="mt-1 text-muted-foreground">{description}</p>}
+          </header>
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex min-h-0 flex-1 flex-col">
-        <div className="flex items-center justify-between gap-2">
-          <TabsList aria-label={`${title} sections`}>
-            {TABS.map((tab) => (
-              <TabsTrigger key={tab.id} value={tab.id}>
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          {!isWide && (
-            <Button variant="outline" size="sm" onClick={() => setDrawerOpen(true)} aria-label="Open Run Inspector">
-              <PanelRightOpen className="mr-1 h-4 w-4" aria-hidden="true" />
-              Inspector
-            </Button>
-          )}
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <TabsList aria-label={`${title} sections`}>
+              {TABS.map((tab) => (
+                <TabsTrigger key={tab.id} value={tab.id}>
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {!isWide && (
+              <Button variant="outline" size="sm" onClick={() => setDrawerOpen(true)} aria-label="Open Run Inspector">
+                <PanelRightOpen className="mr-1 h-4 w-4" aria-hidden="true" />
+                Inspector
+              </Button>
+            )}
+          </div>
         </div>
 
+        {/* Wide: a 3-column grid, each column its own independent scroll
+            region (`min-h-0 overflow-y-auto overscroll-contain`), so wheeling
+            one pane to its end never chains into a sibling pane or the page.
+            Narrow: a single stacked flex column with NO scroll/height
+            constraints of its own - content simply flows, and the app
+            shell's <main> (the one bounded, scrolling ancestor on small
+            screens) scrolls it naturally, the way a single page should. */}
         <div
           data-testid="module-shell-row"
           className={cn(
@@ -142,7 +166,10 @@ export function ModuleShell({
           {isWide && (
             <aside
               aria-label="Learn"
-              className={cn("shrink-0 overflow-y-auto rounded-lg bg-muted/30", learnCollapsed && "w-12")}
+              className={cn(
+                "min-h-0 overflow-y-auto overscroll-contain rounded-lg bg-muted/30",
+                learnCollapsed && "w-12",
+              )}
             >
               <div className="flex items-center justify-between p-2">
                 {!learnCollapsed && (
@@ -166,12 +193,22 @@ export function ModuleShell({
             </aside>
           )}
 
-          {/* Center: tab content. overflow-x-hidden is the hard guarantee that no
-              playground control (e.g. a long-labeled select/button a module forgets
-              to constrain) can ever paint past this track and over the right aside -
-              min-w-0 alone only stops *this* element from blowing out the grid track;
-              it does not clip a misbehaving descendant that's wider than the track. */}
-          <div data-testid="module-shell-center" className="min-h-0 min-w-0 overflow-x-hidden">
+          {/* Center: tab content. `min-w-0` + `overflow-x-hidden` is the hard
+              guarantee that no playground control (e.g. a long-labeled
+              select/button a module forgets to constrain) can ever paint past
+              this track and over the right aside - `min-w-0` alone only stops
+              *this* element from blowing out the grid track; it does not clip
+              a misbehaving descendant that's wider than the track. On wide
+              screens this is ALSO the pane's independent vertical scroll
+              region; on narrow screens it stays a plain block so the page
+              scrolls as one stacked column instead of fighting an inner box. */}
+          <div
+            data-testid="module-shell-center"
+            className={cn(
+              "min-h-0 min-w-0 overflow-x-hidden",
+              isWide && "overflow-y-auto overscroll-contain",
+            )}
+          >
             <TabsContent value="learn" className="h-full">
               {isWide ? (
                 <EmptyState
@@ -203,7 +240,10 @@ export function ModuleShell({
           {isWide && (
             <aside
               aria-label="Run Inspector and explanation"
-              className={cn("shrink-0 overflow-y-auto rounded-lg bg-muted/30 p-3", inspectorCollapsed && "w-12 p-2")}
+              className={cn(
+                "min-h-0 overflow-y-auto overscroll-contain rounded-lg bg-muted/30 p-3",
+                inspectorCollapsed && "w-12 p-2",
+              )}
             >
               <div className="mb-2 flex items-center justify-between">
                 {!inspectorCollapsed && (
@@ -233,7 +273,7 @@ export function ModuleShell({
 
       {!isWide && (
         <Dialog open={drawerOpen} onOpenChange={setDrawerOpen}>
-          <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto">
+          <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto overscroll-contain">
             <DialogHeader>
               <DialogTitle>Run Inspector</DialogTitle>
             </DialogHeader>
