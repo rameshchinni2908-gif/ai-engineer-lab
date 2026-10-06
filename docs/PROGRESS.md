@@ -651,3 +651,34 @@ than overclaiming: the `maxSteps: 0` test exercises the prop contract (the real 
 - Minor, not a defect: `/api/health` reports `ollama: true` with no Ollama running. Deliberate — the
   field is `configured`, not `available`, with a comment that reachability is separate — but readable
   as "available".
+
+---
+
+## RUN COMPLETE — Wave 3 committed as `f7fef13`
+
+Final acceptance report: **`docs/ACCEPTANCE.md`** (audited against CLAUDE.md's Acceptance criteria,
+with a "What is NOT true of this build" section listing the 7 real limitations).
+
+All 4 waves committed:
+| Commit | Contents |
+|---|---|
+| `1a1209c` | wave-0 — monorepo scaffold, shared contracts, SQLite, route table |
+| `ce7fc94` | wave-1 — providers, runs/SSE/explainRun, app shell, 172-term glossary |
+| `539149f` | wave-2 — all 11 module slices, backend + frontend |
+| `6d10932` | wave-2 fixes — sandbox realm escape, M4 run recording, UI disclosures |
+| `f7fef13` | wave-3 — QA hardening, redaction BLOCKER, Docker/seed/E2E, acceptance |
+
+Final live verification (not test-suite inference): `docker compose up` → web HTTP 200 + API healthy +
+SSE incremental through nginx (TTFB 20ms / 52ms total); `pnpm dev` → both servers in Mock mode with
+keys unset; `pnpm seed` → 5 docs, 2×18 eval cases, 2 prompt versions; seeded RAG query returns the
+deliberately-stale ARCHIVED pricing doc, which is the failure-mode lab working as designed.
+
+**If you resume this project, read `docs/ACCEPTANCE.md` §"What is NOT true of this build" first.**
+The single most important item: the Anthropic/OpenAI/Ollama provider paths have **never made a live
+call**. Mock is the only provider with evidence behind it, so expect real bugs on first contact with a
+live API (auth, streaming frame shapes, error mapping, rate-limit handling are all unexercised).
+
+Second most important: five defects in this build shipped with green tests over them, each because the
+test asserted the easy version of its property. The table at the end of `ACCEPTANCE.md` lists all five.
+When adding tests here, the useful question is not "is this covered?" but **"could this assertion ever
+fail?"**
