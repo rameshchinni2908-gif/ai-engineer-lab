@@ -12,8 +12,8 @@ export default function HomePage(): JSX.Element {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <h1 className="text-3xl font-bold tracking-tight">AI Engineer Lab</h1>
-      <p className="mt-2 text-muted-foreground">
+      <h1 className="text-4xl font-bold tracking-tight">AI Engineer Lab</h1>
+      <p className="mt-3 max-w-2xl text-base text-muted-foreground">
         Interactive modern AI engineering lessons for senior engineers. Runs in Mock mode with zero
         API keys - every module is Explain, Do, and See.
       </p>
@@ -22,24 +22,31 @@ export default function HomePage(): JSX.Element {
         {MODULE_NAV.map((mod) => {
           const ratio = moduleCompletionRatio(mod.id);
           return (
-            <li key={mod.id}>
+            <li key={mod.id} className="h-full">
               <Link
                 to={`/m/${mod.id}`}
-                className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex h-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <Card className="h-full transition-colors hover:border-primary">
+                <Card interactive className="flex h-full w-full flex-col">
                   <CardHeader>
-                    <div className="text-xs font-medium text-muted-foreground">
+                    <div className="text-xs font-medium tabular-nums text-muted-foreground">
                       {String(mod.order).padStart(2, "0")}
                     </div>
                     <CardTitle>{mod.title}</CardTitle>
                     <CardDescription>{mod.shortDescription}</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <Progress
-                      value={ratio * 100}
-                      aria-label={`${mod.title} progress: ${Math.round(ratio * 100)}%`}
-                    />
+                  <CardContent className="mt-auto">
+                    {ratio > 0 ? (
+                      <Progress
+                        value={ratio * 100}
+                        aria-label={`${mod.title} progress: ${Math.round(ratio * 100)}%`}
+                      />
+                    ) : (
+                      // A 0%-filled track reads as a stray divider line, so
+                      // don't render it visually; keep the information
+                      // available to assistive tech via an sr-only node.
+                      <span className="sr-only">{`${mod.title} progress: 0%`}</span>
+                    )}
                   </CardContent>
                 </Card>
               </Link>

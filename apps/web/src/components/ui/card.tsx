@@ -1,11 +1,25 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
+export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  /**
+   * Opt-in treatment for cards that are actually clickable (e.g. preset
+   * pickers, run list rows). Adds a hover elevation + border shift with a
+   * themed transition. Do NOT set this on purely informational cards.
+   */
+  interactive?: boolean;
+}
+
+export const Card = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, interactive, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn("rounded-lg border border-border bg-card text-card-foreground shadow-sm", className)}
+      className={cn(
+        "rounded-lg border border-border bg-card text-card-foreground shadow-xs",
+        interactive &&
+          "transition-[box-shadow,border-color] duration-200 motion-reduce:transition-none hover:shadow-md hover:border-border/80",
+        className,
+      )}
       {...props}
     />
   ),
@@ -14,7 +28,7 @@ Card.displayName = "Card";
 
 export const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex flex-col gap-1.5 p-4", className)} {...props} />
+    <div ref={ref} className={cn("flex flex-col gap-1 p-4 pb-3", className)} {...props} />
   ),
 );
 CardHeader.displayName = "CardHeader";

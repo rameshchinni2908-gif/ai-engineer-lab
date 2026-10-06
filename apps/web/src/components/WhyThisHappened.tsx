@@ -101,7 +101,7 @@ export function WhyThisHappened({ runId, explain: explainProp, className }: WhyT
               <li key={i} className="flex items-start gap-2 rounded-md border border-border p-2 text-sm">
                 {impactIcon[factor.impact]}
                 <div>
-                  <span className="font-medium">
+                  <span className="font-medium font-mono tabular-nums">
                     {factor.label}: {factor.value}
                   </span>{" "}
                   <span className="text-muted-foreground">({impactLabel[factor.impact]})</span>

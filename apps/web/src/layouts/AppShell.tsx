@@ -26,20 +26,32 @@ function ModuleNavList({ onNavigate }: { onNavigate?: () => void }): JSX.Element
               onClick={onNavigate}
               className={({ isActive }) =>
                 cn(
-                  "flex flex-col gap-1 rounded-md px-3 py-2 text-sm transition-colors",
+                  "flex flex-col gap-1 rounded-md border-l-2 px-3 py-2 text-sm transition-colors motion-reduce:transition-none",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  isActive ? "bg-accent text-accent-foreground font-medium" : "hover:bg-accent/50",
+                  isActive
+                    ? "border-primary bg-accent text-accent-foreground font-medium"
+                    : "border-transparent hover:bg-muted",
                 )
               }
             >
-              <span>
-                {String(mod.order).padStart(2, "0")}. {mod.title}
+              <span className="flex items-start gap-2">
+                <span className="shrink-0 tabular-nums text-muted-foreground">
+                  {String(mod.order).padStart(2, "0")}.
+                </span>{" "}
+                <span className="min-w-0 break-words">{mod.title}</span>
               </span>
-              <Progress
-                value={ratio * 100}
-                aria-label={`${mod.title} progress: ${Math.round(ratio * 100)}%`}
-                className="h-1"
-              />
+              {ratio > 0 ? (
+                <Progress
+                  value={ratio * 100}
+                  aria-label={`${mod.title} progress: ${Math.round(ratio * 100)}%`}
+                  className="h-1"
+                />
+              ) : (
+                // Nothing in progress yet: a 0%-filled track reads as a stray
+                // divider line, so don't render it visually. Keep the same
+                // information available to assistive tech via an sr-only node.
+                <span className="sr-only">{`${mod.title} progress: 0%`}</span>
+              )}
             </NavLink>
           </li>
         );

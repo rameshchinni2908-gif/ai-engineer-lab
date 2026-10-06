@@ -45,9 +45,9 @@ function DiffWordsView({ aText, bText }: { aText: string; bText: string }): JSX.
 function FieldDeltaRow({ field, aValue, bValue }: { field: string; aValue: unknown; bValue: unknown }): JSX.Element {
   const changed = JSON.stringify(aValue) !== JSON.stringify(bValue);
   return (
-    <div className={cn("flex items-center justify-between border-b border-border py-1.5 text-sm last:border-0")}>
+    <div className={cn("flex items-center justify-between gap-3 border-b border-border/60 py-1 text-sm last:border-0")}>
       <span className="text-muted-foreground">{field}</span>
-      <span className={cn("flex items-center gap-1 font-mono", changed && "font-semibold text-primary")}>
+      <span className={cn("flex items-center gap-1 font-mono text-xs tabular-nums", changed && "font-semibold text-primary")}>
         <span>{String(aValue)}</span>
         {changed && (
           <>

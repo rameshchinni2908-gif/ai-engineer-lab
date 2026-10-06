@@ -89,13 +89,13 @@ export function ModuleShell({
   };
 
   const rightPane = (
-    <div className="flex h-full flex-col gap-4 overflow-y-auto">
+    <div className="flex h-full flex-col gap-5 overflow-y-auto">
       <section aria-label="Run Inspector">
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Run Inspector</h2>
+        <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Run Inspector</h2>
         <RunInspector runId={activeRunId} />
       </section>
       <section aria-label="Why this happened">
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Why this happened
         </h2>
         <WhyThisHappened runId={activeRunId} />
@@ -135,14 +135,19 @@ export function ModuleShell({
             isWide ? "grid grid-cols-[minmax(0,320px)_1fr_minmax(0,360px)]" : "flex flex-col",
           )}
         >
-          {/* Learn pane: persistent collapsible column on wide screens; folds into the Learn tab on narrow screens. */}
+          {/* Learn pane: persistent collapsible column on wide screens; folds into
+              the Learn tab on narrow screens. Recessed `bg-muted/30` (no border)
+              against the white/card center column so the eye finds the
+              Playground first - fewer nested bordered boxes than before. */}
           {isWide && (
             <aside
               aria-label="Learn"
-              className={cn("shrink-0 overflow-y-auto rounded-lg border border-border", learnCollapsed && "w-12")}
+              className={cn("shrink-0 overflow-y-auto rounded-lg bg-muted/30", learnCollapsed && "w-12")}
             >
-              <div className="flex items-center justify-between border-b border-border p-2">
-                {!learnCollapsed && <span className="text-sm font-semibold">Learn</span>}
+              <div className="flex items-center justify-between p-2">
+                {!learnCollapsed && (
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Learn</span>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -157,7 +162,7 @@ export function ModuleShell({
                   )}
                 </Button>
               </div>
-              {!learnCollapsed && <div className="p-3">{learn}</div>}
+              {!learnCollapsed && <div className="px-3 pb-3">{learn}</div>}
             </aside>
           )}
 
@@ -191,14 +196,21 @@ export function ModuleShell({
             </TabsContent>
           </div>
 
-          {/* Right: Run Inspector + Why This Happened (wide screens only; drawer below) */}
+          {/* Right: Run Inspector + Why This Happened (wide screens only; drawer below).
+              Same recessed `bg-muted/30` treatment as the Learn pane, no border -
+              both side panes read as quiet supporting surfaces, center stays the
+              focal (card/background) surface. */}
           {isWide && (
             <aside
               aria-label="Run Inspector and explanation"
-              className={cn("shrink-0 overflow-y-auto rounded-lg border border-border p-3", inspectorCollapsed && "w-12 p-2")}
+              className={cn("shrink-0 overflow-y-auto rounded-lg bg-muted/30 p-3", inspectorCollapsed && "w-12 p-2")}
             >
               <div className="mb-2 flex items-center justify-between">
-                {!inspectorCollapsed && <span className="text-sm font-semibold">Inspector</span>}
+                {!inspectorCollapsed && (
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Inspector
+                  </span>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"

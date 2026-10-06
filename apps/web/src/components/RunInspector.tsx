@@ -47,9 +47,12 @@ function Pre({ children }: { children: string }): JSX.Element {
 
 function KeyValueRow({ label, value }: { label: string; value: React.ReactNode }): JSX.Element {
   return (
-    <div className="flex items-center justify-between border-b border-border py-1.5 text-sm last:border-0">
+    <div className="flex items-center justify-between gap-3 border-b border-border/60 py-1 text-sm last:border-0">
       <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
+      {/* font-mono + tabular-nums: these are metric values (tokens, costs,
+          latency) that can update during/after a streaming run - fixed-width
+          digits stop the row from visually jittering as values change. */}
+      <span className="font-mono text-xs font-medium tabular-nums">{value}</span>
     </div>
   );
 }
@@ -196,7 +199,7 @@ export function RunInspector({ runId, run: runProp, className }: RunInspectorPro
               <div className="space-y-1">
                 {run.logprobs.map((lp, i) => (
                   <div key={i} className="rounded-md border border-border p-2 text-xs">
-                    <div className="flex justify-between font-mono">
+                    <div className="flex justify-between font-mono tabular-nums">
                       <span>{JSON.stringify(lp.token)}</span>
                       <span>{lp.logprob.toFixed(3)}</span>
                     </div>

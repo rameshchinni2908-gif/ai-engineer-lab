@@ -1,5 +1,5 @@
 import type { PresetCopy } from "@/content/types";
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
+import { Button, Card } from "@/components/ui";
 import { EmptyState } from "@/components/EmptyState";
 import { cn } from "@/lib/utils";
 
@@ -30,26 +30,48 @@ export function PresetPicker<T>({ presets, onSelect, activeId, className }: Pres
   }
 
   return (
-    <div className={cn("grid gap-3 sm:grid-cols-2 lg:grid-cols-3", className)}>
-      {presets.map((preset) => (
-        <Card
-          key={preset.id}
-          className={cn(
-            "transition-colors",
-            activeId === preset.id && "border-primary ring-1 ring-primary",
-          )}
-        >
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">{preset.label}</CardTitle>
-            <CardDescription>{preset.description}</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <Button size="sm" variant={activeId === preset.id ? "default" : "secondary"} onClick={() => onSelect(preset)}>
+    <div
+      className={cn(
+        // Vertically stacked compact rows, not a column grid or a horizontal
+        // rail: this component renders inside ModuleShell's narrow center
+        // column (~280-400px in practice). A viewport-breakpoint grid
+        // (`sm:`/`lg:grid-cols-N`) measures against the window, not the
+        // container, so it produced unreadable slivers; a horizontal scroll
+        // rail fit the same too-narrow-track problem from the other axis -
+        // cards got sliced mid-word at the column edge with no affordance.
+        // A single-column list of one-line rows has no column-count decision
+        // to get wrong and degrades gracefully at any container width.
+        "flex flex-col gap-2",
+        className,
+      )}
+    >
+      {presets.map((preset) => {
+        const active = activeId === preset.id;
+        return (
+          <Card
+            key={preset.id}
+            className={cn(
+              "flex min-w-0 items-center gap-3 p-3 transition-shadow hover:shadow-sm",
+              active ? "border-primary ring-1 ring-primary" : "border-border",
+            )}
+          >
+            <div className="min-w-0 flex-1">
+              {/* Must stay a heading (role=heading) - module smoke tests find
+                  a given preset's row via `getByRole("heading", { name: ... })`. */}
+              <h3 className="truncate text-sm font-semibold leading-none tracking-tight">{preset.label}</h3>
+              <p className="mt-1 truncate text-xs text-muted-foreground">{preset.description}</p>
+            </div>
+            <Button
+              size="sm"
+              variant={active ? "default" : "secondary"}
+              className="shrink-0"
+              onClick={() => onSelect(preset)}
+            >
               Try this
             </Button>
-          </CardContent>
-        </Card>
-      ))}
+          </Card>
+        );
+      })}
     </div>
   );
 }

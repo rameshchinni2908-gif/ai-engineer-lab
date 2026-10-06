@@ -18,7 +18,7 @@ export function LearnTabContent({ content }: { content: ModuleLearnContent }): J
             {content.explain.map((block) => (
               <div key={block.heading}>
                 <h4 className="font-semibold">{block.heading}</h4>
-                <p className="text-muted-foreground">
+                <p className="text-foreground">
                   <AutoLinkedText text={block.body} />
                 </p>
               </div>
@@ -31,7 +31,7 @@ export function LearnTabContent({ content }: { content: ModuleLearnContent }): J
             {content.underTheHood.map((block) => (
               <div key={block.heading}>
                 <h4 className="font-semibold">{block.heading}</h4>
-                <p className="text-muted-foreground">
+                <p className="text-foreground">
                   <AutoLinkedText text={block.body} />
                 </p>
               </div>
@@ -45,7 +45,7 @@ export function LearnTabContent({ content }: { content: ModuleLearnContent }): J
               {content.seniorGotchas.map((block) => (
                 <div key={block.heading}>
                   <h4 className="font-semibold">{block.heading}</h4>
-                  <p className="text-muted-foreground">
+                  <p className="text-foreground">
                     <AutoLinkedText text={block.body} />
                   </p>
                 </div>

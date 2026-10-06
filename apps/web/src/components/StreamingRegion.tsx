@@ -94,7 +94,7 @@ export function StreamingRegion({
       {/* Visible output: sighted users watch this update live. Marked aria-hidden
           because the separate throttled live region below is what assistive
           tech should hear - re-exposing this too would double-announce. */}
-      <div aria-hidden="true" className="whitespace-pre-wrap rounded-md bg-muted p-3 text-sm">
+      <div aria-hidden="true" className="whitespace-pre-wrap rounded-md bg-muted px-3 py-2.5 text-sm leading-relaxed">
         {children ?? text}
         {status === "streaming" && (
           <span

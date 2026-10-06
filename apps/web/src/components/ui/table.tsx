@@ -30,7 +30,10 @@ export const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttribut
   ({ className, ...props }, ref) => (
     <tr
       ref={ref}
-      className={cn("border-b border-border transition-colors hover:bg-muted/50", className)}
+      className={cn(
+        "border-b border-border transition-colors duration-150 motion-reduce:transition-none hover:bg-muted/40",
+        className,
+      )}
       {...props}
     />
   ),

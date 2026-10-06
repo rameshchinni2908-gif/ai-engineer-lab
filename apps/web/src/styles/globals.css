@@ -1,51 +1,69 @@
+/*
+ * Self-hosted fonts only (no Google Fonts <link> — the Docker container has
+ * no guaranteed network at runtime, so a remote font link would silently
+ * fail). These resolve to local files bundled via @fontsource-variable/*.
+ */
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
+    --background: 210 20% 99%;
+    --foreground: 222 24% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 222 24% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 221 83% 53%;
-    --radius: 0.5rem;
+    --popover-foreground: 222 24% 11%;
+    --primary: 243 75% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 215 25% 95%;
+    --secondary-foreground: 222 24% 16%;
+    --muted: 215 25% 96%;
+    --muted-foreground: 215 14% 45%;
+    --accent: 243 60% 96%;
+    --accent-foreground: 243 70% 35%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 20% 90%;
+    --input: 214 20% 88%;
+    --ring: 243 75% 58%;
+    --radius: 0.625rem;
+
+    --shadow-xs: 0 1px 2px 0 hsl(222 24% 11% / 0.05);
+    --shadow-sm: 0 1px 3px 0 hsl(222 24% 11% / 0.07), 0 1px 2px -1px hsl(222 24% 11% / 0.06);
+    --shadow-md: 0 4px 12px -2px hsl(222 24% 11% / 0.08), 0 2px 6px -2px hsl(222 24% 11% / 0.05);
+    --shadow-lg: 0 12px 32px -8px hsl(222 24% 11% / 0.12);
   }
 
   .dark {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 14%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 217 33% 18%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 18%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 18%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 18%;
-    --input: 217 33% 18%;
-    --ring: 224 76% 48%;
+    --background: 224 24% 7%;
+    --foreground: 210 20% 96%;
+    --card: 224 20% 10%;
+    --card-foreground: 210 20% 96%;
+    --popover: 224 22% 11%;
+    --popover-foreground: 210 20% 96%;
+    --primary: 243 75% 68%;
+    --primary-foreground: 224 30% 10%;
+    --secondary: 222 16% 17%;
+    --secondary-foreground: 210 20% 96%;
+    --muted: 222 16% 15%;
+    --muted-foreground: 215 15% 62%;
+    --accent: 243 40% 20%;
+    --accent-foreground: 243 80% 85%;
+    --destructive: 0 62% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 14% 19%;
+    --input: 220 14% 22%;
+    --ring: 243 75% 68%;
+
+    --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.1);
+    --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.14), 0 1px 2px -1px hsl(0 0% 0% / 0.12);
+    --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.16), 0 2px 6px -2px hsl(0 0% 0% / 0.1);
+    --shadow-lg: 0 12px 32px -8px hsl(0 0% 0% / 0.24);
   }
 
   * {
@@ -53,6 +71,31 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "cv11", "ss01";
+    line-height: 1.6;
+  }
+
+  h1,
+  h2 {
+    letter-spacing: -0.02em;
+  }
+
+  /* Streaming/metric numbers (token counts, latency, cost, usage) should not
+     jitter horizontally as digits change width. */
+  .tabular,
+  [data-tabular] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

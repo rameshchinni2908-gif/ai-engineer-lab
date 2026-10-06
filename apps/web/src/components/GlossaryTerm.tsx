@@ -53,7 +53,13 @@ export function GlossaryTerm({ id, children, className }: GlossaryTermProps): JS
   }
 
   const triggerClassName = cn(
-    "cursor-help underline decoration-dotted decoration-1 underline-offset-2",
+    // Quiet by default: inherit the surrounding text color and only hint at
+    // interactivity with a dotted underline (kept always-on, not hover-only,
+    // so it stays perceivable/WCAG AA without relying on hover state) -
+    // emphasis (color + solid underline) reveals on hover/focus only, so
+    // Learn-tab prose doesn't read like link spam.
+    "cursor-help border-b border-dotted border-muted-foreground/40 font-normal text-inherit no-underline transition-colors",
+    "hover:border-primary hover:text-primary focus-visible:border-primary focus-visible:text-primary",
     "rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
     className,
   );
