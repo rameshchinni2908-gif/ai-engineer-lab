@@ -16,6 +16,15 @@ export interface BuildAppOptions {
   logger?: boolean;
 }
 
+function getAllowedOrigins(): string[] {
+  const configuredOrigins = (process.env.WEB_ORIGIN ?? "http://localhost:5173")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set([...configuredOrigins, "https://ai-engineer-lab.onrender.com"]));
+}
+
 /**
  * Builds (but does not start) the Fastify app. Kept separate from server.ts
  * so tests can `buildApp().inject(...)` without binding a port.
@@ -34,7 +43,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(cors, {
     // Scoped to the configured web origin (default: the Vite dev server) -
     // never reflects an arbitrary origin.
-    origin: process.env.WEB_ORIGIN ?? "http://localhost:5173",
+    origin: getAllowedOrigins(),
   });
 
   await registerRateLimit(app);
