@@ -9,6 +9,7 @@ coverage/
 playwright-report/
 test-results/
 .turbo/
+.tools/
 *.tsbuildinfo
 .DS_Store
 data/
