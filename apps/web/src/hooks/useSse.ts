@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SseEventSchema, type Run, type SseEvent } from "@ail/shared";
 import { SseFrameParser } from "@/lib/sse-parser";
+import { buildApiUrl } from "@/lib/api-url";
 
 /**
  * Connection-level status. `"aborted"` and the others beyond the
@@ -172,7 +173,7 @@ export function useSse<TEvent extends SseEvent = SseEvent>(
     void (async () => {
       let sawDone = false;
       try {
-        const res = await fetch(currentUrl, {
+        const res = await fetch(buildApiUrl(currentUrl), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

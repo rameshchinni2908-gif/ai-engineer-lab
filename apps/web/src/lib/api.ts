@@ -8,6 +8,7 @@ import type {
   Run,
   Trace,
 } from "@ail/shared";
+import { buildApiUrl } from "./api-url";
 
 /**
  * Typed fetch client for the shared "platform" routes documented in
@@ -19,8 +20,6 @@ import type {
  * No API keys are ever read or sent from this file - the browser only ever
  * talks to our own `/api/*` origin, which proxies to apps/api.
  */
-
-const API_BASE = "/api";
 
 /** Thrown by `apiFetch` on any non-2xx response. Carries the parsed `ApiError` envelope. */
 export class ApiClientError extends Error {
@@ -45,13 +44,7 @@ export interface ApiFetchOptions extends Omit<RequestInit, "body"> {
 }
 
 function buildUrl(path: string, query?: ApiFetchOptions["query"]): string {
-  const url = new URL(`${API_BASE}${path}`, window.location.origin);
-  if (query) {
-    for (const [key, value] of Object.entries(query)) {
-      if (value !== undefined) url.searchParams.set(key, String(value));
-    }
-  }
-  return url.pathname + url.search;
+  return buildApiUrl(path, query);
 }
 
 /**
@@ -154,7 +147,7 @@ export const api = {
     id: string,
     overrideParams?: Run["params"],
   ): { url: string; body: unknown } => ({
-    url: `${API_BASE}/runs/${id}/replay`,
+    url: buildApiUrl(`/runs/${id}/replay`),
     body: { overrideParams },
   }),
 };

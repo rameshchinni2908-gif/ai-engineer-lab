@@ -1,5 +1,6 @@
 import type { Dataset, EvalCase, EvalSuiteResult, EvalVariant, MetricId, Paginated } from "@ail/shared";
 import { apiFetch } from "@/lib/api";
+import { buildApiUrl } from "@/lib/api-url";
 
 /** `GET /api/evals/datasets` */
 export function listDatasets(params: { page?: number; pageSize?: number } = {}): Promise<Paginated<Dataset>> {
@@ -28,7 +29,7 @@ export function importDataset(id: string, format: "json" | "csv", content: strin
 
 /** `GET /api/evals/datasets/:id/export` - returns raw text (JSON or CSV body). */
 export async function exportDataset(id: string, format: "json" | "csv"): Promise<string> {
-  const res = await fetch(`/api/evals/datasets/${id}/export?format=${format}`);
+  const res = await fetch(buildApiUrl(`/evals/datasets/${id}/export`, { format }));
   return res.text();
 }
 
