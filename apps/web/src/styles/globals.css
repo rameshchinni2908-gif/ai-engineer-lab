@@ -73,22 +73,22 @@
   html,
   body,
   #root {
-    height: 100%;
+    min-height: 100%;
   }
 
   html {
-    overscroll-behavior: none;
+    scroll-padding-top: 1rem;
   }
 
   body {
     @apply bg-background text-foreground font-sans;
-    overflow: hidden;
+    margin: 0;
     line-height: 1.6;
   }
 
   h1,
   h2 {
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
   }
 
   /* Streaming/metric numbers (token counts, latency, cost, usage) should not
@@ -149,5 +149,92 @@
 
   *::-webkit-scrollbar-corner {
     background: transparent;
+  }
+}
+
+/* Mobile uses document scrolling so browser bars and the keyboard can resize
+   the visible page without leaving content trapped in a fixed-height pane. */
+.app-shell {
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+.app-header {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(0.75rem, env(safe-area-inset-right));
+}
+
+.app-main {
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(0.75rem, env(safe-area-inset-right));
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  overflow-wrap: anywhere;
+}
+
+.app-dialog {
+  top: calc(var(--visual-top, 0px) + var(--visual-height, 100dvh) / 2);
+  max-height: calc(var(--visual-height, 100dvh) - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+
+.app-toasts {
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select,
+  button[role="combobox"] {
+    font-size: 16px;
+  }
+
+  button:not([role="switch"]):not([role="checkbox"]):not([role="slider"]) {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  main button:not([role="tab"]):not([role="switch"]):not([role="checkbox"]):not([role="combobox"]) {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (min-width: 1024px) {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    overflow: hidden;
+  }
+
+  .app-shell {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .app-main,
+  .app-sidebar {
+    overflow-y: auto;
+  }
+
+  .app-main {
+    padding: 1rem;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .app-sidebar {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    max-height: 100dvh;
+    overflow-y: auto;
   }
 }

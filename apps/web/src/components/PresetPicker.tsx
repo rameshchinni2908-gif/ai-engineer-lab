@@ -58,8 +58,8 @@ export function PresetPicker<T>({ presets, onSelect, activeId, className }: Pres
             <div className="min-w-0 flex-1">
               {/* Must stay a heading (role=heading) - module smoke tests find
                   a given preset's row via `getByRole("heading", { name: ... })`. */}
-              <h3 className="truncate text-sm font-semibold leading-none tracking-tight">{preset.label}</h3>
-              <p className="mt-1 truncate text-xs text-muted-foreground">{preset.description}</p>
+              <h3 className="text-sm font-semibold leading-snug sm:truncate">{preset.label}</h3>
+              <p className="mt-1 text-xs text-muted-foreground sm:truncate">{preset.description}</p>
             </div>
             <Button
               size="sm"

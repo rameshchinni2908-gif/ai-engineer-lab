@@ -79,7 +79,7 @@ function ToastCard({ item }: { item: ToastItem }): JSX.Element {
   return (
     <div
       className={cn(
-        "pointer-events-auto flex w-80 items-start gap-2 rounded-md border p-4 shadow-lg",
+        "pointer-events-auto flex w-full max-w-sm items-start gap-2 rounded-md border p-4 shadow-lg sm:w-80",
         variantClasses[item.variant],
       )}
     >
@@ -109,7 +109,7 @@ export function Toaster(): JSX.Element | null {
       role="region"
       aria-label="Notifications"
       aria-live="polite"
-      className="pointer-events-none fixed bottom-4 right-4 z-[100] flex flex-col gap-2"
+      className="app-toasts pointer-events-none fixed inset-x-3 bottom-4 z-[100] flex flex-col items-end gap-2 sm:left-auto sm:right-4"
     >
       {toasts.map((item) => (
         <ToastCard key={item.id} item={item} />

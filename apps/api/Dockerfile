@@ -19,6 +19,7 @@ RUN pnpm install --frozen-lockfile --filter=@ail/api... || pnpm install --filter
 
 FROM deps AS build
 COPY apps/api apps/api
+COPY seed seed
 RUN pnpm --filter=@ail/shared build && pnpm --filter=@ail/api build
 
 FROM base AS runtime

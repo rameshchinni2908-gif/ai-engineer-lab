@@ -3,5 +3,9 @@
   "installCommand": "corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile",
   "buildCommand": "pnpm --filter=@ail/shared build && pnpm --filter=@ail/web build",
   "outputDirectory": "apps/web/dist",
-  "rewrites": [{ "source": "/:path*", "destination": "/index.html" }]
+  "rewrites": [{ "source": "/:path*", "destination": "/index.html" }],
+  "headers": [
+    { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+    { "source": "/manifest.webmanifest", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+  ]
 }

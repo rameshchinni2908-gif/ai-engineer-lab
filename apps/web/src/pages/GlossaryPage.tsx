@@ -39,7 +39,7 @@ export default function GlossaryPage(): JSX.Element {
         <dl className="space-y-6">
           {filtered.map((entry) => (
             <div key={entry.id} id={entry.id} className="scroll-mt-20 border-b border-border pb-4">
-              <dt className="flex items-center gap-2 text-lg font-semibold">
+              <dt className="flex flex-wrap items-center gap-2 text-lg font-semibold">
                 {entry.term}
                 {entry.moduleId && <Badge variant="outline">{entry.moduleId}</Badge>}
               </dt>

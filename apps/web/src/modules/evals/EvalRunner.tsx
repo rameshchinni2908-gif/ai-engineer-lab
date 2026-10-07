@@ -1,11 +1,13 @@
 import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { EvalVariant, MetricId } from "@ail/shared";
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Textarea } from "@/components/ui";
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Textarea } from "@/components/ui";
 import { ProviderModelSelector } from "@/components/ProviderModelSelector";
 import { EmptyState, ErrorState } from "@/components/EmptyState";
 import { StreamingRegion } from "@/components/StreamingRegion";
 import { useSse } from "@/hooks/useSse";
 import { useProviderModelStore } from "@/stores/provider-model";
+import { listPromptVersions } from "@/modules/prompting/api";
 
 /** Preset-applicable params. A prompt-version id can't be meaningfully preset (it's whatever the user created in Prompt Engineering), so presets instead control what's actually observable here: which metrics are selected and how many variant rows exist. */
 export interface EvalRunnerParams {
@@ -44,6 +46,7 @@ interface VariantRow extends EvalVariant {
 export function EvalRunner({ datasetId, onRunComplete, onSuiteComplete, appliedParams }: EvalRunnerProps): JSX.Element {
   const storeProviderId = useProviderModelStore((s) => s.providerId);
   const storeModel = useProviderModelStore((s) => s.model);
+  const promptVersions = useQuery({ queryKey: ["eval-prompt-versions"], queryFn: () => listPromptVersions() });
 
   const [variants, setVariants] = React.useState<VariantRow[]>([
     { key: "v0", promptVersionId: "", providerId: storeProviderId, model: storeModel },
@@ -158,6 +161,16 @@ export function EvalRunner({ datasetId, onRunComplete, onSuiteComplete, appliedP
                     onChange={(e) => updateVariant(v.key, { promptVersionId: e.target.value })}
                     placeholder="pv_... (from Prompt Engineering)"
                   />
+                  {(promptVersions.data?.items.length ?? 0) > 0 && (
+                    <Select value={v.promptVersionId || undefined} onValueChange={(promptVersionId) => updateVariant(v.key, { promptVersionId })}>
+                      <SelectTrigger className="mt-2 w-56" aria-label={`Choose saved prompt for variant ${i}`}>
+                        <SelectValue placeholder="Choose a saved prompt" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {promptVersions.data?.items.map(prompt => <SelectItem key={prompt.id} value={prompt.id}>{prompt.name} (v{prompt.version})</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <ProviderModelSelector
                   providerId={v.providerId}

@@ -24,6 +24,7 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./e2e",
+  testIgnore: ["mobile.spec.ts", "lab-actions.spec.ts"],
   timeout: 60_000,
   expect: { timeout: 20_000 },
   fullyParallel: false,

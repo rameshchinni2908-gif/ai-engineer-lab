@@ -26,7 +26,7 @@ const PRESET_PARAMS: Record<string, RagPresetParams> = {
   "rag-compression-on-off": { collection: "nimbus-kb", strategy: "compression", topK: 6 },
 };
 
-const DEFAULT_COLLECTION = "rag-playground";
+const DEFAULT_COLLECTION = "nimbus-kb";
 
 export default function RagModulePage(): JSX.Element {
   const [activeRunId, setActiveRunId] = React.useState<string | undefined>();

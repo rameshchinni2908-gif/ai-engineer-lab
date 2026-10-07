@@ -16,6 +16,10 @@ services:
         value: mock
       - key: VECTOR_STORE
         value: memory
+      - key: SEED_DEMO_DATA
+        value: "true"
+      - key: RATE_LIMIT_MAX
+        value: "300"
       - key: DATABASE_PATH
         value: /app/data/lab.db
       - key: LOG_LEVEL

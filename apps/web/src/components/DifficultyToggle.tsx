@@ -36,7 +36,7 @@ export function DifficultyToggle({ className }: DifficultyToggleProps): JSX.Elem
             aria-checked={active}
             onClick={() => setDifficulty(level.value)}
             className={cn(
-              "rounded-sm px-3 py-1 text-sm font-medium transition-colors",
+              "min-h-9 flex-1 rounded-sm px-2 py-1 text-sm font-medium transition-colors sm:flex-none sm:px-3",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               active
                 ? "bg-background text-foreground shadow-sm"

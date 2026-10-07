@@ -48,7 +48,7 @@ export interface ModuleShellProps {
  * Learn (collapsible), center = Playground/Experiments/Pitfalls (tabbed,
  * tab synced to the URL as `/m/:moduleId/:tab`), right = Run Inspector +
  * "Why this happened". Responsive: stacks vertically below the `lg`
- * breakpoint, with the right pane becoming a drawer dialog.
+ * breakpoint, with document scrolling and the right pane in a dialog.
  *
  * Module agents (Wave 2): compose this ONCE per module page, passing your
  * Learn/Playground/Experiments/Pitfalls content as props. Do not fork or
@@ -113,51 +113,41 @@ export function ModuleShell({
   );
 
   return (
-    // Root: fills whatever bounded box the app shell's <main> hands us
-    // (`h-full`) and is allowed to shrink below its content size
-    // (`min-h-0`) so the *inner* panes - not this component, not <main>,
-    // not the document - are the ones that scroll.
-    <div className="flex h-full min-h-0 flex-col">
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex h-full min-h-0 flex-col">
-        {/* Title, description, and the tab strip stay put while panes scroll
-            beneath them - this whole block is `shrink-0`, never part of the
-            scrolling flow. */}
+    <div className="flex min-h-0 flex-col lg:h-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex min-h-0 flex-col lg:h-full">
         <div className="shrink-0">
           <header>
-            <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-            {description && <p className="mt-1 text-muted-foreground">{description}</p>}
+            <div className="flex items-start justify-between gap-2">
+              <h1 className="min-w-0 break-words text-xl font-bold sm:text-2xl">{title}</h1>
+              {!isWide && (
+                <Button variant="outline" size="icon" className="shrink-0" onClick={() => setDrawerOpen(true)} aria-label="Open Run Inspector" title="Run Inspector">
+                  <PanelRightOpen className="h-5 w-5" aria-hidden="true" />
+                </Button>
+              )}
+            </div>
+            {description && <p className="mt-1 text-sm text-muted-foreground sm:text-base">{description}</p>}
           </header>
 
           <div className="mt-3 flex items-center justify-between gap-2">
-            <TabsList aria-label={`${title} sections`}>
+            <TabsList className="grid h-auto min-h-11 w-full grid-cols-4 sm:inline-flex sm:w-auto" aria-label={`${title} sections`}>
               {TABS.map((tab) => (
-                <TabsTrigger key={tab.id} value={tab.id}>
+                <TabsTrigger key={tab.id} value={tab.id} className="min-h-9 min-w-0 px-1 text-xs sm:px-3 sm:text-sm">
                   {tab.label}
                 </TabsTrigger>
               ))}
             </TabsList>
-            {!isWide && (
-              <Button variant="outline" size="sm" onClick={() => setDrawerOpen(true)} aria-label="Open Run Inspector">
-                <PanelRightOpen className="mr-1 h-4 w-4" aria-hidden="true" />
-                Inspector
-              </Button>
-            )}
           </div>
         </div>
 
-        {/* Wide: a 3-column grid, each column its own independent scroll
-            region (`min-h-0 overflow-y-auto overscroll-contain`), so wheeling
-            one pane to its end never chains into a sibling pane or the page.
-            Narrow: a single stacked flex column with NO scroll/height
-            constraints of its own - content simply flows, and the app
-            shell's <main> (the one bounded, scrolling ancestor on small
-            screens) scrolls it naturally, the way a single page should. */}
+        {/* Desktop panes scroll independently; mobile content flows into
+            the document so browser bars can expand and collapse naturally. */}
         <div
           data-testid="module-shell-row"
           className={cn(
-            "mt-3 min-h-0 flex-1 gap-4",
-            isWide ? "grid grid-cols-[minmax(0,320px)_1fr_minmax(0,360px)]" : "flex flex-col",
+            "mt-3 min-h-0 min-w-0 gap-4 lg:flex-1",
+            isWide ? "grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)]" : "flex flex-col",
           )}
+          style={isWide ? { gridTemplateColumns: `${learnCollapsed ? "3rem" : "minmax(0,1fr)"} minmax(0,2fr) ${inspectorCollapsed ? "3rem" : "minmax(0,1fr)"}` } : undefined}
         >
           {/* Learn pane: persistent collapsible column on wide screens; folds into
               the Learn tab on narrow screens. Recessed `bg-muted/30` (no border)
@@ -205,11 +195,11 @@ export function ModuleShell({
           <div
             data-testid="module-shell-center"
             className={cn(
-              "min-h-0 min-w-0 overflow-x-hidden",
-              isWide && "overflow-y-auto overscroll-contain",
+              "min-h-0 min-w-0",
+              isWide && "overflow-x-hidden overflow-y-auto overscroll-contain",
             )}
           >
-            <TabsContent value="learn" className="h-full">
+            <TabsContent value="learn" className="lg:h-full">
               {isWide ? (
                 <EmptyState
                   title="Learn is in the left pane"
@@ -219,16 +209,16 @@ export function ModuleShell({
                 learn
               )}
             </TabsContent>
-            <TabsContent value="playground" className="h-full space-y-4">
+            <TabsContent value="playground" className="space-y-4 lg:h-full">
               {presets}
               {playground}
             </TabsContent>
-            <TabsContent value="experiments" className="h-full">
+            <TabsContent value="experiments" className="lg:h-full">
               {experiments ?? (
                 <EmptyState title="No experiments yet" description="This module hasn't added experiments." />
               )}
             </TabsContent>
-            <TabsContent value="pitfalls" className="h-full">
+            <TabsContent value="pitfalls" className="lg:h-full">
               {pitfalls ?? <EmptyState title="No pitfalls documented yet" />}
             </TabsContent>
           </div>
@@ -273,7 +263,7 @@ export function ModuleShell({
 
       {!isWide && (
         <Dialog open={drawerOpen} onOpenChange={setDrawerOpen}>
-          <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto overscroll-contain">
+          <DialogContent className="max-w-lg" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>Run Inspector</DialogTitle>
             </DialogHeader>

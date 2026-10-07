@@ -78,7 +78,7 @@ describe("ModuleShell responsive layout contract", () => {
 
     const row = screen.getByTestId("module-shell-row");
     expect(row.className).toContain("grid");
-    expect(row.className).toContain("grid-cols-[minmax(0,320px)_1fr_minmax(0,360px)]");
+    expect(row.className).toContain("grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)]");
     // Regression guard: this element must not also carry `flex`. Previously it
     // did, and only rendered as a grid because of Tailwind's utility-generation
     // order placing `.grid` after `.flex` in the stylesheet - an implementation
@@ -110,7 +110,7 @@ describe("ModuleShell responsive layout contract", () => {
     renderShell();
 
     const row = screen.getByTestId("module-shell-row");
-    expect(row.className).not.toContain("grid-cols-[minmax(0,320px)_1fr_minmax(0,360px)]");
+    expect(row.className).not.toContain("grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)]");
     expect(row.className.split(/\s+/)).toContain("flex-col");
 
     // Narrow screens: no persistent Learn aside column (it folds into the Learn tab instead).

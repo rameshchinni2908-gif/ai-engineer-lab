@@ -33,6 +33,10 @@ export function openSseStream(
 
   // Fastify's own response lifecycle is bypassed from here on - we own
   // `reply.raw` directly for the rest of this request.
+  // CORS and rate-limit plugins populate Fastify's headers, not reply.raw.
+  for (const [name, value] of Object.entries(reply.getHeaders())) {
+    if (value !== undefined) reply.raw.setHeader(name, value);
+  }
   reply.hijack();
   reply.raw.writeHead(200, {
     "content-type": "text/event-stream; charset=utf-8",

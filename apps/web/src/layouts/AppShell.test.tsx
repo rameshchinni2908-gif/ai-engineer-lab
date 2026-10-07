@@ -36,7 +36,7 @@ describe("AppShell - accessibility basics", () => {
     renderShell();
     expect(screen.getAllByRole("main")).toHaveLength(1);
     const nav = screen.getByRole("navigation", { name: /modules/i });
-    expect(within(nav).getAllByRole("link").length).toBe(11);
+    expect(within(nav).getAllByRole("link").length).toBe(13);
   });
 
   it("gives every interactive header control an accessible name", () => {

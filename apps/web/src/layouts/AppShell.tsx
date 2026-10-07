@@ -1,5 +1,5 @@
 import * as React from "react";
-import { NavLink, Outlet, Link } from "react-router-dom";
+import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
 import { HelpCircle, Menu } from "lucide-react";
 import { MODULE_NAV } from "@/app/modules.config";
 import { DifficultyToggle } from "@/components/DifficultyToggle";
@@ -12,6 +12,9 @@ import { useProgressStore } from "@/stores/progress";
 import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useUiStore } from "@/stores/ui";
 import { cn } from "@/lib/utils";
+import { InstallAppButton } from "@/components/InstallAppButton";
+import { useVisualViewport } from "@/hooks/useVisualViewport";
+import { AppUpdateNotice } from "@/components/AppUpdateNotice";
 
 function ModuleNavList({ onNavigate }: { onNavigate?: () => void }): JSX.Element {
   const moduleCompletionRatio = useProgressStore((s) => s.moduleCompletionRatio);
@@ -68,41 +71,49 @@ function ModuleNavList({ onNavigate }: { onNavigate?: () => void }): JSX.Element
  */
 export function AppShell(): JSX.Element {
   useGlobalKeyboardShortcuts();
+  useVisualViewport();
   const setShortcutsDialogOpen = useUiStore((s) => s.setShortcutsDialogOpen);
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
+  const { pathname } = useLocation();
+
+  React.useLayoutEffect(() => {
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    const main = document.getElementById("main-content");
+    if (main) main.scrollTop = 0;
+  }, [pathname]);
 
   return (
-    // The app shell owns the viewport; the document itself never scrolls.
-    // `h-dvh` (with `h-screen` as a same-value fallback for browsers that
-    // don't support dvh) excludes the mobile URL bar from the height
-    // calculation so nothing is ever cut off beneath it.
-    <div className="flex h-screen h-dvh flex-col overflow-hidden">
+    <div className="app-shell flex flex-col">
       <SkipToContent />
 
-      <header className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-        <div className="flex items-center gap-2">
+      <header className="app-header flex shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-2 border-b border-border bg-background px-3 py-2 sm:px-4">
+        <div className="flex min-w-0 items-center gap-1 sm:gap-2">
           <Button
             variant="ghost"
             size="icon"
             className="md:hidden"
             aria-label="Open module navigation"
+            title="Modules"
+            aria-expanded={mobileNavOpen}
             onClick={() => setMobileNavOpen(true)}
           >
             <Menu className="h-5 w-5" aria-hidden="true" />
           </Button>
           <Link
             to="/"
-            className="rounded-sm font-bold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="rounded-sm font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             AI Engineer Lab
           </Link>
         </div>
-        <div className="flex items-center gap-2">
-          <DifficultyToggle />
+        <div className="flex shrink-0 items-center gap-1 sm:order-last sm:gap-2">
+          <InstallAppButton />
           <ThemeToggle />
           <Button
             variant="ghost"
             size="icon"
+            className="hidden sm:inline-flex"
             aria-label="Keyboard shortcuts"
             title="Keyboard shortcuts (?)"
             onClick={() => setShortcutsDialogOpen(true)}
@@ -110,34 +121,42 @@ export function AppShell(): JSX.Element {
             <HelpCircle className="h-5 w-5" aria-hidden="true" />
           </Button>
         </div>
+        <DifficultyToggle className="order-last w-full sm:order-none sm:ml-auto sm:w-auto" />
       </header>
 
-      <div className="flex min-h-0 flex-1">
+      <AppUpdateNotice />
+
+      <div className="flex min-h-0 min-w-0 flex-1">
         <nav
           aria-label="Modules"
-          className="hidden w-64 shrink-0 overflow-y-auto border-r border-border p-3 md:block"
+          className="app-sidebar hidden w-56 shrink-0 border-r border-border p-3 md:block xl:w-64"
         >
           <ModuleNavList />
+          <div className="mt-3 space-y-1 border-t pt-3 text-sm">
+            <Link to="/glossary" className="block rounded-md px-3 py-2 hover:bg-muted">Glossary</Link>
+            <Link to="/runs" className="block rounded-md px-3 py-2 hover:bg-muted">Run history</Link>
+          </div>
         </nav>
 
-        {/*
-         * Bounded, scrollable box per the contract with ModuleShell: on
-         * module pages ModuleShell renders `h-full min-h-0` in here and
-         * owns its own internal pane scrolling, so <main> itself does not
-         * overflow. Simple pages (e.g. home) scroll inside <main> normally.
-         */}
-        <main id="main-content" tabIndex={-1} className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 focus:outline-none">
+        <main id="main-content" tabIndex={-1} className="app-main min-h-0 min-w-0 flex-1 p-3 focus:outline-none sm:p-4">
           <Outlet />
         </main>
       </div>
 
       <Dialog open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-        <DialogContent className="max-w-xs">
+        <DialogContent className="max-w-sm" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Modules</DialogTitle>
           </DialogHeader>
           <nav aria-label="Modules (mobile)">
+            <ul className="mb-2 border-b pb-2">
+              <li><Link to="/" className="flex min-h-11 items-center rounded-md px-3 text-sm font-medium hover:bg-muted" onClick={() => setMobileNavOpen(false)}>All modules</Link></li>
+            </ul>
             <ModuleNavList onNavigate={() => setMobileNavOpen(false)} />
+            <div className="mt-3 space-y-1 border-t pt-3 text-sm">
+              <Link to="/glossary" className="flex min-h-11 items-center rounded-md px-3 hover:bg-muted" onClick={() => setMobileNavOpen(false)}>Glossary</Link>
+              <Link to="/runs" className="flex min-h-11 items-center rounded-md px-3 hover:bg-muted" onClick={() => setMobileNavOpen(false)}>Run history</Link>
+            </div>
           </nav>
         </DialogContent>
       </Dialog>
